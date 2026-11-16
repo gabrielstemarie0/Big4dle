@@ -34,9 +34,15 @@
     answer = sp[Math.floor(r() * sp.length)].name;
     key = "b4-day-" + edition + "-" + seed;
     const saved = m === "daily" ? store.get(key, null) : null;
+    if (m === "daily") {
+      // Every team gets a turn before any repeats (see schedule.js). A saved game keeps its own answer.
+      const scheduled = dailyTeamName(edition, seed);
+      if (saved && saved.answer) answer = saved.answer; else if (scheduled) answer = scheduled;
+      sport = pool.find(t => t.name === answer).sport;
+    }
     guesses = saved ? saved.guesses : [];
     order = saved && saved.order ? saved.order : shuffle([0, 1, 2, 3, 4, 5], Math.random);   // random every game, kept for the day if you come back
-    if (mode === "daily") store.set(key, { guesses, order });
+    if (mode === "daily") store.set(key, { guesses, order, answer });
     over = false; won = false;
     $("mode-btn").textContent = m === "daily" ? "Daily" : "Practice";
     $("flag").innerHTML = flagSVG(pool.find(t => t.name === answer));
@@ -119,7 +125,7 @@
   function submit(code) {
     if (over || !code || guesses.includes(code)) return;
     guesses.push(code);
-    if (mode === "daily") store.set(key, { guesses, order });
+    if (mode === "daily") store.set(key, { guesses, order, answer });
     $("guess").value = ""; options();
     if (code === answer || guesses.length >= MAX) finish(false); else render();
   }

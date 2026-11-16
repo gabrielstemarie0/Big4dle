@@ -1,15 +1,14 @@
-// Draws the flag of a team's captain's country, repainted in the team's colors, waving on a pole.
+// Draws the flag of a team's captain's country, repainted in the team's colors (flat, filling the whole board).
 // The real flag layout is kept (cross, stripes, stars, maple leaf, ...); the colors are the team's.
 function lum(hex) { const n = parseInt(hex.slice(1), 16); const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(n >> 16) + .7152 * f(n >> 8 & 255) + .0722 * f(n & 255); }
 
-// Flag-space (u, v in 0..1) -> picture space. The wave grows from the pole (u = 0) to the free end.
-const FX = 44, FY = 30, FW = 226, FH = 128, AMP = 11;
-const wave = u => AMP * u * Math.sin(u * Math.PI * 2.6 + .4);
-const map = (u, v) => [FX + u * FW, FY + v * FH + wave(u)];
-const U = px => px / FW, V = px => px / FH;      // picture pixels -> flag-space
+// Flag-space (u, v in 0..1) -> picture space. The flag is flat and fills the whole 300x200 picture.
+const FX = 0, FY = 0, FW = 300, FH = 200, S = 1.45;
+const map = (u, v) => [FX + u * FW, FY + v * FH];
+const U = px => px * S / FW, V = px => px * S / FH;      // shape sizes in pixels (scaled to the picture) -> flag-space
 
-// Polygon in flag-space; edges are subdivided (n) so straight edges follow the ripples.
-function poly(pts, fill, n = 28, stroke) {
+// Polygon in flag-space (edges can be subdivided with n).
+function poly(pts, fill, n = 1, stroke) {
   const out = [];
   for (let i = 0; i < pts.length; i++) {
     const [a, b] = [pts[i], pts[(i + 1) % pts.length]];
@@ -43,7 +42,7 @@ const FLAGS = {
   de: (A, B, C) => hbands([A, B, C], [1, 1, 1]),
   fr: (A, B, C) => vbands([A, B, C], [1, 1, 1]),
   rs: (A, B, C) => hbands([A, B, C], [1, 1, 1]) + poly([[.2, .22], [.34, .22], [.34, .5], [.27, .62], [.2, .5]], A) + poly([[.23, .27], [.31, .27], [.31, .47], [.27, .54], [.23, .47]], C),
-  gr: (A, B, C) => { let o = ""; for (let i = 0; i < 9; i++) o += box(0, i / 9, 1, (i + 1) / 9, i % 2 ? C : A); const w = U(5 / 9 * FH); o += box(0, 0, w, 5 / 9, A) + box(w / 2 - U(7), 0, w / 2 + U(7), 5 / 9, C) + box(0, 5 / 18 - V(7), w, 5 / 18 + V(7), C); return o; },
+  gr: (A, B, C) => { let o = ""; for (let i = 0; i < 9; i++) o += box(0, i / 9, 1, (i + 1) / 9, i % 2 ? C : A); const w = 5 / 9 * FH / FW; o += box(0, 0, w, 5 / 9, A) + box(w / 2 - U(7), 0, w / 2 + U(7), 5 / 9, C) + box(0, 5 / 18 - V(7), w, 5 / 18 + V(7), C); return o; },
   si: (A, B, C) => hbands([C, B, A], [1, 1, 1]) + poly([[.1, .1], [.26, .1], [.26, .42], [.18, .55], [.1, .42]], B) + poly([[.12, .14], [.24, .14], [.24, .4], [.18, .5], [.12, .4]], C) + poly([[.13, .38], [.18, .24], [.23, .38]], A),
   cm: (A, B, C) => vbands([A, B, C], [1, 1, 1]) + star(.5, .5, 17, C),
   au: (A, B, C) => box(0, 0, 1, 1, A) + box(0, 0, .5, .5, A) +
@@ -63,40 +62,7 @@ const FLAGS = {
 
 function flagSVG(t) {
   const { c1, c2, c3 } = t;
-  const id = "f" + Math.random().toString(36).slice(2, 7);
   const art = (FLAGS[t.cap && t.cap.country] || FLAGS.de)(c1, c2, c3);
-
-  // cloth outline (clip) and ripple shading
-  const top = [], bot = [];
-  for (let i = 0; i <= 60; i++) { const u = i / 60; top.push(map(u, 0)); bot.push(map(u, 1)); }
-  const outline = top.concat(bot.reverse()).map(p => p.map(n => n.toFixed(1)).join(",")).join(" ");
-  let darkStops = "", lightStops = "";
-  for (let i = 0; i <= 80; i++) {
-    const u = i / 80, s = Math.cos(u * Math.PI * 2.6 + .4);   // slope of the wave
-    darkStops += `<stop offset="${u.toFixed(4)}" stop-color="#000" stop-opacity="${(Math.max(s, 0) * .2).toFixed(3)}"/>`;
-    lightStops += `<stop offset="${u.toFixed(4)}" stop-color="#fff" stop-opacity="${(Math.max(-s, 0) * .2).toFixed(3)}"/>`;
-  }
-  const ripple = `<rect x="${FX}" y="0" width="${FW}" height="200" fill="url(#${id}rd)"/><rect x="${FX}" y="0" width="${FW}" height="200" fill="url(#${id}rl)"/>`;
-  const pole = `<rect x="34" y="12" width="7" height="186" rx="3" fill="url(#${id}p)"/><circle cx="37.5" cy="11" r="6" fill="url(#${id}g)"/>`;
-  const light = [c1, c2, c3].filter(c => lum(c) > .5).length >= 2;
-  const bg = light ? ["#b9bfcc", "#8f97a8"] : ["#eef0f5", "#d2d6e0"];
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" role="img" aria-label="Mystery flag in a team's colors">` +
-    `<defs>
-      <linearGradient id="${id}bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient>
-      <linearGradient id="${id}p" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6d7380"/><stop offset=".45" stop-color="#e3e6ec"/><stop offset="1" stop-color="#7a808d"/></linearGradient>
-      <radialGradient id="${id}g" cx=".35" cy=".3"><stop offset="0" stop-color="#fff2b8"/><stop offset="1" stop-color="#b8902f"/></radialGradient>
-      <linearGradient id="${id}v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient>
-      <linearGradient id="${id}rd" x1="0" y1="0" x2="1" y2="0">${darkStops}</linearGradient>
-      <linearGradient id="${id}rl" x1="0" y1="0" x2="1" y2="0">${lightStops}</linearGradient>
-      <filter id="${id}d" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="3" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".3"/></filter>
-      <clipPath id="${id}c"><polygon points="${outline}"/></clipPath>
-    </defs>` +
-    `<rect width="300" height="200" fill="url(#${id}bg)"/>` +
-    pole +
-    `<g filter="url(#${id}d)"><polygon points="${outline}" fill="${c1}"/></g>` +
-    `<g clip-path="url(#${id}c)">${art}${ripple}<rect width="300" height="200" fill="url(#${id}v)"/></g>` +
-    `<polygon points="${outline}" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1" stroke-linejoin="round"/>` +
-    `<rect x="34" y="${FY - 2}" width="7" height="5" fill="rgba(0,0,0,.2)"/><rect x="34" y="${FY + FH - 3}" width="7" height="5" fill="rgba(0,0,0,.2)"/>` +
-    `</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" preserveAspectRatio="none" role="img" aria-label="Mystery flag in a team's colors">` +
+    `<rect width="300" height="200" fill="${c1}"/>${art}</svg>`;
 }

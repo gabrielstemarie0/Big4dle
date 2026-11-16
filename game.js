@@ -14,6 +14,14 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
   };
 
+  // Tiny ball icons shown next to each guess (the sport of the team guessed).
+  const BALLS = {
+    football: '<svg class="ball" viewBox="-10 -10 20 20" aria-hidden="true"><g transform="rotate(-35)"><ellipse rx="9.4" ry="6" fill="#9a5528" stroke="#1a1a1a" stroke-width=".9"/><path d="M-5 -4V4M5 -4V4" stroke="#fff" stroke-width="1.3"/><path d="M-2.4 0H2.4M-1.4 -1.6V1.6M0 -1.6V1.6M1.4 -1.6V1.6" stroke="#fff" stroke-width=".9"/></g></svg>',
+    baseball: '<svg class="ball" viewBox="-10 -10 20 20" aria-hidden="true"><circle r="8.5" fill="#fff" stroke="#1a1a1a" stroke-width=".9"/><path d="M-4.9 -6.8Q-.4 0 -4.9 6.8M4.9 -6.8Q.4 0 4.9 6.8" fill="none" stroke="#d62839" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    basketball: '<svg class="ball" viewBox="-10 -10 20 20" aria-hidden="true"><circle r="8.5" fill="#f28c28" stroke="#1a1a1a" stroke-width=".9"/><path d="M-8.5 0H8.5M0 -8.5V8.5M-6.1 -6.1Q-1.7 0 -6.1 6.1M6.1 -6.1Q1.7 0 6.1 6.1" fill="none" stroke="#1a1a1a" stroke-width="1.1"/></svg>',
+    hockey: '<svg class="ball" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M-8 -1.5V2.5A8 4 0 0 0 8 2.5V-1.5Z" fill="#1d1d1d" stroke="#9a9a9a" stroke-width=".9"/><ellipse cy="-1.5" rx="8" ry="4" fill="#4a4a4a" stroke="#9a9a9a" stroke-width=".9"/></svg>'
+  };
+
   let edition = "current", mode = "daily", sport, pool, answer, order, guesses, over, won, key;
 
   function setup(m) {
@@ -52,10 +60,13 @@
     const target = pool.find(t => t.name === answer);
     guesses.forEach(name => {
       const t = pool.find(x => x.name === name), li = document.createElement("li");
-      li.className = name === answer ? "ok" : t.sport === sport ? "close" : "no";
       const n = document.createElement("span"); n.className = "name"; n.textContent = name;
-      const km = document.createElement("span"); km.className = "km"; km.textContent = `${kmBetween(t.loc, target.loc).toLocaleString("en-US")} km`;
-      li.append(n, km); ol.append(li);
+      const right = document.createElement("span"); right.className = "right";
+      right.innerHTML = BALLS[t.sport];
+      const km = document.createElement("span");
+      km.className = "km " + (name === answer ? "ok" : t.sport === sport ? "close" : "");
+      km.textContent = `${kmBetween(t.loc, target.loc).toLocaleString("en-US")} km`;
+      right.append(km); li.append(n, right); ol.append(li);
     });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;

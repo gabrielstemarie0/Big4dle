@@ -10,30 +10,34 @@
 </head>
 <body>
   <header class="top">
-    <h1>Big4dle</h1>
-    <div class="chips">
-      <button class="chip" id="mode-btn" type="button">Daily</button>
-      <span class="chip" title="Current streak">🔥 <b id="streak">0</b></span>
+    <div class="bar">
+      <h1>Big4dle</h1>
+      <div class="tools">
+        <button class="link" id="mode-btn" type="button">Daily</button>
+        <span class="streak" title="Current streak"><b id="streak">0</b> streak</span>
+        <button class="icon" id="help-btn" type="button" aria-label="How to play">?</button>
+      </div>
     </div>
+    <nav class="tabs" role="tablist" aria-label="Edition">
+      <button class="tab" id="tab-current" role="tab" type="button">Current teams</button>
+      <button class="tab" id="tab-alltime" role="tab" type="button">All-time</button>
+    </nav>
   </header>
 
   <main>
-    <div class="tabs" role="tablist" aria-label="Edition">
-      <button class="tab" id="tab-current" role="tab" type="button">Current Teams</button>
-      <button class="tab" id="tab-alltime" role="tab" type="button">All-Time</button>
-    </div>
-    <p class="sub" id="sub">The team's colors are painted on the flag of its captain's country. Each wrong guess reveals a random square. Yellow: right sport, wrong team. The distance shows how far your guess is from the answer.</p>
-
     <div class="board" id="board" aria-label="Mystery flag">
       <div id="flag"></div>
       <div class="tiles" id="tiles"></div>
     </div>
 
-    <p class="status" id="status" aria-live="polite"></p>
+    <div class="meta">
+      <span id="status" aria-live="polite"></span>
+      <span class="key"><i class="g"></i>Right team <i class="y"></i>Right sport</span>
+    </div>
 
     <form id="form" autocomplete="off">
       <div class="combo">
-        <input id="guess" type="text" placeholder="Type a team…" aria-label="Guess a team" spellcheck="false" autocapitalize="off">
+        <input id="guess" type="text" placeholder="Search a team" aria-label="Guess a team" spellcheck="false" autocapitalize="off">
         <ul id="options" role="listbox" hidden></ul>
       </div>
       <button class="btn" id="submit" type="submit">Guess</button>
@@ -52,6 +56,18 @@
       <p class="stats" id="stats"></p>
     </section>
   </main>
+
+  <dialog id="help">
+    <h2>How to play</h2>
+    <ul>
+      <li>The flag is the national flag of the team's captain (or star player), painted in the team's colors.</li>
+      <li>Guess the team in 6 tries. Each wrong guess uncovers a random square.</li>
+      <li><b class="gt">Green</b> is the right team. <b class="yt">Yellow</b> is the right sport, wrong team.</li>
+      <li>Each guess shows how far it is from the answer in km, with no direction.</li>
+      <li>One puzzle a day for each edition: current teams, or all-time including teams that no longer exist.</li>
+    </ul>
+    <form method="dialog"><button class="btn">Got it</button></form>
+  </dialog>
 
   <script src="teams.js"></script>
   <script src="captains.js"></script>

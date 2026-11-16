@@ -136,6 +136,7 @@
     $("tab-alltime").setAttribute("aria-selected", e === "alltime");
     setup("daily");
   }
+  $("help-btn").onclick = () => $("help").showModal();
   $("tab-current").onclick = () => setEdition("current");
   $("tab-alltime").onclick = () => setEdition("alltime");
   setEdition("current");

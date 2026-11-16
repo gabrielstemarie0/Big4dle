@@ -82,7 +82,7 @@ function buildTeam(row, sport) {
   let base = "#" + c1, a = "#" + c2, b = "#" + c3;
   if (f.includes("w")) { base = "#f7f7f7"; a = "#" + c1; b = "#" + c2; }   // white home jersey, team colors as trim
   const name = `${city} ${nick}`;
-  return { name, sport, div: DIVISIONS[name], c1: base, c2: a, c3: b, pin: f.includes("p") };
+  return { name, city, sport, div: DIVISIONS[name], c1: base, c2: a, c3: b, pin: f.includes("p") };
 }
 for (const [k, s] of Object.entries(TEAMS)) {
   s.current = s.list.map(r => buildTeam(r, k));

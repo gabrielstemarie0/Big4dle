@@ -3,7 +3,7 @@
   const MAX = 6;
   const $ = id => document.getElementById(id);
 
-  // Deterministic PRNG so everyone gets the same flag and reveal order on a given day.
+  // Seeded PRNG so everyone gets the same team on a given day (the reveal order is random per player).
   const hash = s => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
   const rng = seed => () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const shuffle = (a, r) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -24,10 +24,11 @@
     pool = SPORTS.flatMap(s => TEAMS[s][edition]);
     const sp = pool.filter(t => t.sport === sport);
     answer = sp[Math.floor(r() * sp.length)].name;
-    order = shuffle([0, 1, 2, 3, 4, 5], r);
     key = "b4-day-" + edition + "-" + seed;
     const saved = m === "daily" ? store.get(key, null) : null;
     guesses = saved ? saved.guesses : [];
+    order = saved && saved.order ? saved.order : shuffle([0, 1, 2, 3, 4, 5], Math.random);   // random every game, kept for the day if you come back
+    if (mode === "daily") store.set(key, { guesses, order });
     over = false; won = false;
     $("mode-btn").textContent = m === "daily" ? "Daily" : "Practice";
     $("flag").innerHTML = flagSVG(pool.find(t => t.name === answer));
@@ -48,10 +49,15 @@
       t.append(d);
     }
     const ol = $("guesses"); ol.innerHTML = "";
-    guesses.forEach(g => { const li = document.createElement("li"); li.className = g === answer ? "ok" : "no"; li.textContent = g; ol.append(li); });
+    const target = pool.find(t => t.name === answer);
+    guesses.forEach(name => {
+      const t = pool.find(x => x.name === name), li = document.createElement("li");
+      li.className = name === answer ? "ok" : t.sport === sport ? "close" : "no";
+      const n = document.createElement("span"); n.className = "name"; n.textContent = name;
+      const km = document.createElement("span"); km.className = "km"; km.textContent = `${kmBetween(t.loc, target.loc).toLocaleString("en-US")} km`;
+      li.append(n, km); ol.append(li);
+    });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
-    const a = pool.find(t => t.name === answer), n = guesses.length;
-    $("league").textContent = (over || n >= 5) ? `${TEAMS[sport].emoji} ${TEAMS[sport].label} · ${a.div}` : n >= 3 ? `${TEAMS[sport].emoji} ${TEAMS[sport].label}` : "Sport revealed after guess 3";
     $("submit").disabled = $("guess").disabled = over;
   }
 
@@ -60,8 +66,8 @@
     render();
     $("status").textContent = "";
     $("end-title").textContent = won ? `Got it in ${guesses.length}! It's ${answer}.` : `It was ${answer}.`;
-    const squares = guesses.map(g => g === answer ? "🟩" : "🟥").join("") + "⬜".repeat(MAX - guesses.length);
-    $("share-text").textContent = `Big4dle ${edition === "alltime" ? "All-Time " : ""}${TEAMS[sport].emoji}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
+    const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(MAX - guesses.length);
+    $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
     const cap = pool.find(t => t.name === answer).cap;
     $("end-detail").textContent = cap ? `${COUNTRIES[cap.country]} flag · captain/star: ${cap.name}` : "";
     $("end").hidden = false;
@@ -85,8 +91,8 @@
     $("stats").textContent = `Played ${s.played} · Won ${s.played ? Math.round(100 * s.wins / s.played) : 0}% · Streak ${s.streak}`;
   }
 
-  // Autocomplete (narrowed to the sport once it has been revealed)
-  const candidates = () => pool.filter(t => guesses.length < 3 && !over || t.sport === sport).map(t => t.name);
+  // Autocomplete: every team, so nothing about the sport is given away
+  const candidates = () => pool.map(t => t.name);
   let matches = [], sel = -1;
   function options() {
     const q = $("guess").value.trim().toLowerCase();
@@ -102,7 +108,7 @@
   function submit(code) {
     if (over || !code || guesses.includes(code)) return;
     guesses.push(code);
-    if (mode === "daily") store.set(key, { guesses });
+    if (mode === "daily") store.set(key, { guesses, order });
     $("guess").value = ""; options();
     if (code === answer || guesses.length >= MAX) finish(false); else render();
   }

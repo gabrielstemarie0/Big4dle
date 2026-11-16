@@ -24,15 +24,15 @@ const hbands = (cols, ratios) => { let v = 0, s = ratios.reduce((a, b) => a + b,
 const vbands = (cols, ratios) => { let u = 0, s = ratios.reduce((a, b) => a + b, 0), o = ""; cols.forEach((c, i) => { const w = ratios[i] / s; o += box(u, 0, u + w, 1, c); u += w; }); return o; };
 const nordic = (field, cross, inner, cu = .36, w = 20, wi = 8) => box(0, 0, 1, 1, field) + box(0, .5 - V(w / 2), 1, .5 + V(w / 2), cross) + box(cu - U(w / 2), 0, cu + U(w / 2), 1, cross) +
   (inner ? box(0, .5 - V(wi / 2), 1, .5 + V(wi / 2), inner) + box(cu - U(wi / 2), 0, cu + U(wi / 2), 1, inner) : "");
-// Canadian maple leaf (right half, mirrored), unit coordinates, y down.
-const LEAF = [[0, -1], [.09, -.78], [.2, -.84], [.19, -.56], [.4, -.7], [.37, -.46], [.7, -.52], [.64, -.3], [.92, -.2], [.62, .06], [.7, .26], [.3, .2], [.28, .34], [.07, .3], [.05, .78]];
-const leaf = (cu, cv, R, fill) => poly(LEAF.concat(LEAF.slice(1, -1).reverse().map(([x, y]) => [-x, y])).map(([x, y]) => [cu + U(x * R), cv + V(y * R)]), fill, 2);
+// Canadian maple leaf: the official outline (37 points, unit coordinates, y down).
+const LEAF = [[0.045,1.0],[0.022,0.572],[0.077,0.523],[0.504,0.598],[0.446,0.439],[0.456,0.403],[0.923,0.025],[0.818,-0.024],[0.801,-0.064],[0.893,-0.347],[0.624,-0.29],[0.588,-0.309],[0.536,-0.432],[0.326,-0.206],[0.271,-0.235],[0.372,-0.757],[0.21,-0.663],[0.165,-0.676],[0.0,-1.0],[-0.165,-0.676],[-0.21,-0.663],[-0.372,-0.757],[-0.271,-0.235],[-0.326,-0.206],[-0.536,-0.432],[-0.588,-0.309],[-0.624,-0.29],[-0.893,-0.347],[-0.801,-0.064],[-0.818,-0.024],[-0.923,0.025],[-0.456,0.403],[-0.446,0.439],[-0.504,0.598],[-0.077,0.523],[-0.022,0.572],[-0.045,1.0]];
+const leaf = (cu, cv, R, fill) => poly(LEAF.map(([x, y]) => [cu + U(x * R), cv + V(y * R)]), fill);
 
 // Each flag: (A, B, C) = the team's primary, secondary and accent colors, assigned to the flag's colors in order.
 const FLAGS = {
   us: (A, B, C) => { let o = ""; for (let i = 0; i < 13; i++) o += box(0, i / 13, 1, (i + 1) / 13, i % 2 ? C : A); o += box(0, 0, .42, 7 / 13, B);
     for (let r = 0; r < 9; r++) for (let c = 0; c < (r % 2 ? 5 : 6); c++) o += star(.42 * ((r % 2 ? 2 * c + 2 : 2 * c + 1) / 12), (r + .5) / 9 * (7 / 13), 2.6, C, 5); return o; },
-  ca: (A, B, C) => box(0, 0, .25, 1, A) + box(.25, 0, .75, 1, C) + box(.75, 0, 1, 1, A) + leaf(.5, .5, 44, A),
+  ca: (A, B, C) => box(0, 0, .25, 1, A) + box(.25, 0, .75, 1, C) + box(.75, 0, 1, 1, A) + leaf(.5, .5, 50, A),
   se: (A, B) => nordic(A, B, null, .34, 22),
   fi: (A, B, C) => nordic(C, A, null, .36, 22),
   no: (A, B, C) => nordic(A, C, B, .34, 24, 11),

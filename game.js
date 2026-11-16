@@ -45,7 +45,7 @@
     for (let i = 0; i < 6; i++) {
       const d = document.createElement("div");
       d.className = "tile" + (revealed.has(i) ? " open" : "");
-      d.textContent = revealed.has(i) ? "" : "?";
+      d.textContent = "";
       t.append(d);
     }
     const ol = $("guesses"); ol.innerHTML = "";

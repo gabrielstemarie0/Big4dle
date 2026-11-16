@@ -10,3 +10,4 @@ Flagle-style game for the big four sports leagues (NFL, MLB, NBA, NHL). 6 guesse
 - Stats and today's progress live in `localStorage`.
 
 - Deploys: pushing to `main` deploys automatically (Cloudflare Pages).
+- Practice link: `?practice` opens a random practice round (add `&edition=alltime` for the all-time pool). Practice rounds never change your daily game or streak.

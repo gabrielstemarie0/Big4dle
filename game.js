@@ -147,14 +147,16 @@
   $("practice").onclick = () => setup("practice");
   $("mode-btn").onclick = () => setup(mode === "daily" ? "practice" : "daily");
 
-  function setEdition(e) {
+  function setEdition(e, m = "daily") {
     edition = e;
     $("tab-current").setAttribute("aria-selected", e === "current");
     $("tab-alltime").setAttribute("aria-selected", e === "alltime");
-    setup("daily");
+    setup(m);
   }
   $("help-btn").onclick = () => $("help").showModal();
   $("tab-current").onclick = () => setEdition("current");
   $("tab-alltime").onclick = () => setEdition("alltime");
-  setEdition("current");
+  // Links: ?practice opens a fresh random practice round; add &edition=alltime for the all-time pool.
+  const q = new URLSearchParams(location.search);
+  setEdition(q.get("edition") === "alltime" ? "alltime" : "current", q.has("practice") ? "practice" : "daily");
 })();

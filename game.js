@@ -47,6 +47,10 @@
     });
   }
 
+  const escHTML = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // Blanked-out words (█) are drawn as a soft gray bar, not as bright text blocks.
+  const redacted = text => escHTML(text).replace(/█+/g, run => `<span class="redact" style="width:${Math.min(run.length, 6) * .55}em"></span>`);
+
   async function lookupPreview(title, artist) {
     try {
       const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(title + " " + artist)}&media=music&entity=song&limit=10`);
@@ -57,7 +61,7 @@
 
   function songFallback(box, why) {
     const h = HINTS[hintTeam.name], mask = maskFor(hintTeam);
-    box.innerHTML = `<div class="cap">Team song</div><div class="val">${mask(h.s[0])}</div><div class="sub">${mask(h.s[1])}${why ? " · clip unavailable" : ""}</div>`;
+    box.innerHTML = `<div class="cap">Team song</div><div class="val">${redacted(mask(h.s[0]))}</div><div class="sub">${redacted(mask(h.s[1]))}${why ? " · clip unavailable" : ""}</div>`;
   }
 
   function buildSong(box) {
@@ -99,7 +103,7 @@
       box.innerHTML = `<div class="bands"><i style="background:${a};flex:5"></i><i style="background:${b};flex:3"></i><i style="background:${c};flex:2"></i></div><div class="cap chip">Home jersey colors</div>`;
     } else {
       const v = i === 1 ? h.f : h.m;
-      box.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${mask(v)}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
+      box.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${redacted(mask(v))}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
     }
   }
 

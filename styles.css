@@ -24,7 +24,7 @@ main{max-width:460px;margin:0 auto;padding:14px 16px 40px}
 .key .g{background:var(--good)}.key .y{background:var(--yellow)}
 form{display:flex;gap:8px}
 .combo{position:relative;flex:1}
-input{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
+input{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:16px}
 input:focus,.btn:focus-visible,.tab:focus-visible,.icon:focus-visible,.link:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 input::placeholder{color:var(--muted)}
 #options{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:240px;overflow:auto;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.12)}
@@ -74,3 +74,4 @@ dialog li{margin:6px 0}
 .bands{position:absolute;inset:0;display:flex;flex-direction:column}
 .bands i{display:block}
 .cap.chip{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:4px}
+.redact{display:inline-block;height:.95em;vertical-align:-.12em;border-radius:3px;background:var(--muted);opacity:.45;margin:0 .12em}

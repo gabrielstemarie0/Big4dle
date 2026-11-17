@@ -61,20 +61,23 @@
     } catch { return null; }
   }
 
-  function songFallback(box, why) {
+  function songFallback(face, why) {
     const h = HINTS[hintTeam.name], mask = maskFor(hintTeam);
-    box.innerHTML = `<div class="cap">Team song</div><div class="val">${redacted(mask(h.s[0]))}</div><div class="sub">${redacted(mask(h.s[1]))}${why ? " · clip unavailable" : ""}</div>`;
+    face.innerHTML = `<div class="cap">Team song</div><div class="val">${redacted(mask(h.s[0]))}</div><div class="sub">${redacted(mask(h.s[1]))}${why ? " · clip unavailable" : ""}</div>`;
   }
 
-  function buildSong(box) {
+  // final = the revealed back of the card: same play button, with the real song under it (audio keeps playing if it already was).
+  function buildSong(face, final = false) {
     const h = HINTS[hintTeam.name];
-    audio.pause(); audio.removeAttribute("src"); tried = false;
-    if (h && h.u) audio.src = h.u;
-    box.innerHTML = `<div class="cap">Team song</div><button class="play" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button><div class="sub">15-second clip</div>`;
-    const btn = box.querySelector(".play");
+    if (!final) { audio.pause(); audio.removeAttribute("src"); tried = false; if (h && h.u) audio.src = h.u; }
+    else if (!audio.getAttribute("src") && h && h.u) { audio.src = h.u; tried = false; }
+    const under = final ? `<div class="val song">${escHTML(h.s[0])}</div><div class="sub">${escHTML(h.s[1])}</div>` : `<div class="sub">15-second clip</div>`;
+    face.innerHTML = `<div class="cap">Team song</div><button class="play${final ? " small" : ""}" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button>${under}`;
+    const btn = face.querySelector(".play");
+    if (final) { btn.classList.toggle("playing", !audio.paused); btn.style.setProperty("--p", audio.currentTime ? (audio.currentTime / CLIP_SECONDS * 100).toFixed(1) : 0); }
     const recover = async () => {
       if (!tried && h) { tried = true; const u = await lookupPreview(h.s[0], h.s[1]); if (u) { audio.src = u; try { await audio.play(); return; } catch {} } }
-      songFallback(box, true);
+      if (final) face.querySelector(".sub").textContent = `${h.s[1]} · clip unavailable`; else songFallback(face, true);
     };
     btn.onclick = async () => {
       if (!audio.paused) { audio.pause(); return; }
@@ -94,27 +97,58 @@
   function buildHints(team) {
     hintTeam = team;
     const host = $("hints"); host.innerHTML = ""; boxes = [];
-    for (let i = 0; i < 4; i++) { const d = document.createElement("div"); d.className = "hint locked"; d.dataset.step = i; host.append(d); boxes.push(d); }
+    for (let i = 0; i < 4; i++) {
+      const d = document.createElement("div"); d.className = "hint locked"; d.dataset.step = i;
+      d.innerHTML = '<div class="flipper"><div class="face front"></div><div class="face back"></div></div>';
+      host.append(d); boxes.push(d);
+    }
   }
 
+  // Front of a card: the hint as the player earns it (team names blanked out).
   function fillBox(i) {
-    const box = boxes[i], h = HINTS[hintTeam.name] || {}, mask = maskFor(hintTeam);
-    if (i === 0) buildSong(box);
+    const face = boxes[i].querySelector(".front"), h = HINTS[hintTeam.name] || {}, mask = maskFor(hintTeam);
+    if (i === 0) buildSong(face);
     else if (i === 3) {
       const [a, b, c] = [hintTeam.c1, hintTeam.c2, hintTeam.c3];
-      box.innerHTML = `<div class="bands"><i style="background:${a};flex:5"></i><i style="background:${b};flex:3"></i><i style="background:${c};flex:2"></i></div><div class="cap chip">Home jersey colors</div>`;
+      face.innerHTML = `<div class="bands"><i style="background:${a};flex:5"></i><i style="background:${b};flex:3"></i><i style="background:${c};flex:2"></i></div><div class="cap chip">Home jersey colors</div>`;
     } else {
       const v = i === 1 ? h.f : h.m;
-      box.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${redacted(mask(v))}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
+      face.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${redacted(mask(v))}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
+    }
+  }
+
+  // Back of a card: the real answer, nothing blanked out.
+  function fillBack(i) {
+    const face = boxes[i].querySelector(".back"), h = HINTS[hintTeam.name] || {};
+    if (i === 0) buildSong(face, true);
+    else if (i === 3) {
+      const [a, b, c] = [hintTeam.c1, hintTeam.c2, hintTeam.c3];
+      face.innerHTML = `<div class="bands"><i style="background:${a};flex:5"></i><i style="background:${b};flex:3"></i><i style="background:${c};flex:2"></i></div><div class="namepill">${escHTML(hintTeam.name)}</div>`;
+    } else {
+      const v = i === 1 ? h.f : h.m;
+      face.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${escHTML(v)}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
     }
   }
 
   function renderHints() {
-    const open = over ? 4 : Math.min(4, guesses.length);   // nothing is open until the first guess
+    if (over) return;                                         // the finished board is handled by revealAll()
+    const open = Math.min(4, guesses.length);                 // nothing is open until the first guess
     boxes.forEach((box, i) => {
+      const face = box.querySelector(".front");
       if (i < open && box.classList.contains("locked")) { box.classList.remove("locked"); box.classList.add("open"); fillBox(i); }
-      else if (i >= open && !box.classList.contains("locked")) { box.classList.add("locked"); box.classList.remove("open"); box.innerHTML = ""; }
-      if (i >= open) box.textContent = i + 1;
+      else if (i >= open && !box.classList.contains("locked")) { box.classList.add("locked"); box.classList.remove("open"); }
+      if (i >= open) face.textContent = i + 1;
+    });
+  }
+
+  // End of the game: every card flips over (top-left to bottom-right) to show the real answer.
+  function revealAll(animate) {
+    boxes.forEach((box, i) => {
+      const flipper = box.querySelector(".flipper");
+      fillBack(i);
+      flipper.style.transition = animate ? "" : "none";
+      flipper.style.transitionDelay = animate ? `${i * 0.5}s` : "0s";
+      requestAnimationFrame(() => requestAnimationFrame(() => flipper.classList.add("flipped")));
     });
   }
 
@@ -170,11 +204,10 @@
     over = true; won = guesses.includes(answer);
     render();
     $("status").textContent = "";
-    $("end-title").textContent = won ? `Got it in ${guesses.length}! It's ${answer}.` : `It was ${answer}.`;
+    $("end-title").textContent = won ? `Got it in ${guesses.length}!` : "Out of guesses";
     const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(Math.max(0, MAX - guesses.length));
     $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
-    const h = HINTS[answer];
-    $("end-detail").textContent = h ? `Song: ${h.s[0]} (${h.s[1]}) · Fans: ${h.f || "none known"} · Mascot: ${h.m || "none"}` : "";
+    revealAll(!restore);
     $("end").hidden = false;
     if (mode === "daily" && !restore) recordStats();
     showStats();

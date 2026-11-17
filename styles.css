@@ -58,9 +58,9 @@ dialog li{margin:6px 0}
 .gt{color:var(--good)}.yt{color:#a8861a}
 
 /* Hint board: four boxes, revealed top-left to bottom-right */
-.hints{display:grid;grid-template:repeat(2,1fr)/repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;aspect-ratio:3/2}
-.hint{position:relative;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center;min-width:0;overflow:hidden}
-.hint.locked{background:var(--cover);color:rgba(255,255,255,.3);font-size:22px;font-weight:600}
+.hints{display:grid;grid-template:repeat(2,1fr)/repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;aspect-ratio:4/3}
+.hint{position:relative;perspective:1000px;min-width:0;overflow:hidden;background:var(--surface)}
+.hint.locked .front{background:var(--cover);color:rgba(255,255,255,.3);font-size:22px;font-weight:600}
 .hint.open{animation:pop .35s ease}
 @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 .hint .cap{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -81,3 +81,13 @@ dialog li{margin:6px 0}
 .btn.soft:not(:disabled){opacity:.45}
 .warn{color:var(--ink);font-weight:600}
 .tab.locked{opacity:.5;cursor:not-allowed}
+
+/* Cards: hint on the front, real answer on the back; they flip over in order at the end */
+.flipper{position:absolute;inset:0;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .8s cubic-bezier(.45,.05,.25,1)}
+.flipper.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center;min-width:0;background:var(--surface);overflow:hidden}
+.face.back{transform:rotateY(180deg)}
+.hint .val.song{font-size:13px;font-weight:700;line-height:1.25;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.play.small{width:42px;height:42px}
+.namepill{position:relative;background:rgba(0,0,0,.62);color:#fff;font-weight:700;font-size:15px;line-height:1.2;padding:7px 12px;border-radius:8px;max-width:88%}
+@media (prefers-reduced-motion:reduce){.flipper{transition:none!important}}

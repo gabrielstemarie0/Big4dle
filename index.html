@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Big4dle</title>
-  <meta name="description" content="Guess the pro team from its colors on its captain's national flag in 6 tries. Every wrong guess reveals another square.">
+  <meta name="description" content="Guess the pro team from its song, fan base, mascot and jersey colors. NFL, MLB, NBA and NHL.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#ffffff">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Big4dle">
-  <meta property="og:description" content="Guess the pro team from a flag painted in its colors. NFL, MLB, NBA and NHL.">
+  <meta property="og:description" content="Guess the pro team from its song, fan base, mascot and colors. NFL, MLB, NBA and NHL.">
   <meta property="og:image" content="https://big4dle.pages.dev/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="styles.css">
@@ -32,10 +32,7 @@
   </header>
 
   <main>
-    <div class="board" id="board" aria-label="Mystery flag">
-      <div id="flag"></div>
-      <div class="tiles" id="tiles"></div>
-    </div>
+    <div class="hints" id="hints" aria-label="Hints"></div>
 
     <div class="meta">
       <span id="status" aria-live="polite"></span>
@@ -68,7 +65,7 @@
     <h2>How to play</h2>
     <ul>
       <li>Guess the team in 6 tries. Every team is from the NFL, MLB, NBA or NHL.</li>
-      <li>Each wrong guess uncovers part of the flag.</li>
+      <li>You start with the team's song. Each guess opens the next hint: fan base, mascot, then home jersey colors.</li>
       <li><b class="gt">Green</b>: right team. <b class="yt">Yellow</b>: right sport.</li>
       <li>The km shows how far your guess is.</li>
     </ul>
@@ -76,9 +73,8 @@
   </dialog>
 
   <script src="teams.js"></script>
-  <script src="captains.js"></script>
   <script src="places.js"></script>
-  <script src="flag.js"></script>
+  <script src="hints.js"></script>
   <script src="schedule.js"></script>
   <script src="game.js"></script>
 </body>

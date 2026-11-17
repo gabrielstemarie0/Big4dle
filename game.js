@@ -22,7 +22,92 @@
     hockey: '<svg class="ball" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M-8 -1.5V2.5A8 4 0 0 0 8 2.5V-1.5Z" fill="#1d1d1d" stroke="#9a9a9a" stroke-width=".9"/><ellipse cy="-1.5" rx="8" ry="4" fill="#4a4a4a" stroke="#9a9a9a" stroke-width=".9"/></svg>'
   };
 
-  let edition = "current", mode = "daily", sport, pool, answer, order, guesses, over, won, key;
+  // ---- Hint board: four boxes, top-left to bottom-right. One more box opens after every guess.
+  //      1 team song (play button) · 2 fan base · 3 mascot · 4 home jersey colours
+  const STEPS = ["Team song", "Fan base", "Mascot", "Home jersey colors"];
+  const audio = new Audio(); audio.preload = "none";
+  let boxes = [], hintTeam = null, tried = false;
+  const ALIAS = { Patriots: ["pats"], Buccaneers: ["bucs", "bucco"], Dolphins: ["phins", "phinsiders"], "49ers": ["niners", "niner"], Jaguars: ["jags"], Cardinals: ["cards"],
+    Seahawks: ["hawks"], "Red Sox": ["sox"], "White Sox": ["sox"], "Blue Jays": ["jays"], Diamondbacks: ["dbacks", "d-backs"], Athletics: ["a's"], Canadiens: ["habs"],
+    Penguins: ["pens"], Capitals: ["caps"], Hurricanes: ["canes", "caniacs"], Avalanche: ["avs"], Predators: ["preds", "smashville"], Mavericks: ["mavs"],
+    Timberwolves: ["wolves", "twolves", "t-wolves"], Islanders: ["isles"], Senators: ["sens"], Lightning: ["bolts"], Coyotes: ["yotes"], Nationals: ["nats"],
+    Bruins: ["b's"], Warriors: ["dub"], Raiders: ["raider"], Commanders: ["washington"], Knicks: ["knick"], Sixers: ["sixers"], "76ers": ["sixers"], Hornets: ["hornets"] };
+  const GENERIC = new Set(["new", "los", "san", "bay", "city", "state", "north", "south", "west", "east", "the", "of"]);
+
+  // Blank out words that would give the team away ("Steelers Nation" -> "████████ Nation").
+  function maskFor(team) {
+    const parts = `${team.city} ${team.name.slice(team.city.length)}`.replace(/\(.*?\)/g, " ").toLowerCase().split(/[^a-z0-9']+/).filter(w => w.length >= 3 && !GENERIC.has(w));
+    const nick = team.name.slice(team.city.length).trim();
+    const stems = new Set(parts.map(w => w.replace(/s$/, "")).filter(w => w.length >= 3).concat((ALIAS[nick] || []).map(w => w.replace(/s$/, ""))));
+    return text => text.replace(/[A-Za-z0-9'’]+(?:-[A-Za-z0-9]+)*/g, w => {
+      const lw = w.toLowerCase();
+      for (const s of stems) if (lw.startsWith(s)) return w.replace(/[A-Za-z0-9]/g, "█");
+      return w;
+    });
+  }
+
+  async function lookupPreview(title, artist) {
+    try {
+      const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(title + " " + artist)}&media=music&entity=song&limit=10`);
+      const hit = (await r.json()).results.find(x => x.previewUrl);
+      return hit ? hit.previewUrl : null;
+    } catch { return null; }
+  }
+
+  function songFallback(box, why) {
+    const h = HINTS[hintTeam.name], mask = maskFor(hintTeam);
+    box.innerHTML = `<div class="cap">Team song</div><div class="val">${mask(h.s[0])}</div><div class="sub">${mask(h.s[1])}${why ? " · clip unavailable" : ""}</div>`;
+  }
+
+  function buildSong(box) {
+    const h = HINTS[hintTeam.name];
+    audio.pause(); audio.removeAttribute("src"); tried = false;
+    if (h && h.u) audio.src = h.u;
+    box.innerHTML = `<div class="cap">Team song</div><button class="play" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button><div class="sub">30-second clip</div>`;
+    const btn = box.querySelector(".play");
+    const recover = async () => {
+      if (!tried && h) { tried = true; const u = await lookupPreview(h.s[0], h.s[1]); if (u) { audio.src = u; try { await audio.play(); return; } catch {} } }
+      songFallback(box, true);
+    };
+    btn.onclick = async () => {
+      if (!audio.paused) { audio.pause(); return; }
+      if (!audio.getAttribute("src")) return recover();
+      try { await audio.play(); } catch { recover(); }
+    };
+    audio.onplay = () => btn.classList.add("playing");
+    audio.onpause = audio.onended = () => btn.classList.remove("playing");
+    audio.ontimeupdate = () => btn.style.setProperty("--p", audio.duration ? (audio.currentTime / audio.duration * 100).toFixed(1) : 0);
+    audio.onerror = () => { if (audio.getAttribute("src")) recover(); };
+  }
+
+  function buildHints(team) {
+    hintTeam = team;
+    const host = $("hints"); host.innerHTML = ""; boxes = [];
+    for (let i = 0; i < 4; i++) { const d = document.createElement("div"); d.className = "hint locked"; d.dataset.step = i; host.append(d); boxes.push(d); }
+  }
+
+  function fillBox(i) {
+    const box = boxes[i], h = HINTS[hintTeam.name] || {}, mask = maskFor(hintTeam);
+    if (i === 0) buildSong(box);
+    else if (i === 3) {
+      const [a, b, c] = [hintTeam.c1, hintTeam.c2, hintTeam.c3];
+      box.innerHTML = `<div class="bands"><i style="background:${a};flex:5"></i><i style="background:${b};flex:3"></i><i style="background:${c};flex:2"></i></div><div class="cap chip">Home jersey colors</div>`;
+    } else {
+      const v = i === 1 ? h.f : h.m;
+      box.innerHTML = `<div class="cap">${STEPS[i]}</div>` + (v ? `<div class="val">${mask(v)}</div>` : `<div class="val none">${i === 1 ? "No known fan base name" : "No official mascot"}</div>`);
+    }
+  }
+
+  function renderHints() {
+    const open = over ? 4 : Math.min(4, 1 + guesses.length);
+    boxes.forEach((box, i) => {
+      if (i < open && box.classList.contains("locked")) { box.classList.remove("locked"); box.classList.add("open"); fillBox(i); }
+      else if (i >= open && !box.classList.contains("locked")) { box.classList.add("locked"); box.classList.remove("open"); box.innerHTML = ""; }
+      if (i >= open) box.textContent = i + 1;
+    });
+  }
+
+  let edition = "current", mode = "daily", sport, pool, answer, guesses, over, won, key;
 
   function setup(m) {
     mode = m;
@@ -41,11 +126,10 @@
       sport = pool.find(t => t.name === answer).sport;
     }
     guesses = saved ? saved.guesses : [];
-    order = saved && saved.order ? saved.order : shuffle([0, 1, 2, 3, 4, 5], Math.random);   // random every game, kept for the day if you come back
-    if (mode === "daily") store.set(key, { guesses, order, answer });
+    if (mode === "daily") store.set(key, { guesses, answer });
     over = false; won = false;
     $("mode-btn").textContent = m === "daily" ? "Daily" : "Practice";
-    $("flag").innerHTML = flagSVG(pool.find(t => t.name === answer));
+    buildHints(pool.find(t => t.name === answer));
     $("end").hidden = true;
     $("guess").value = "";
     render();
@@ -53,15 +137,7 @@
   }
 
   function render() {
-    const t = $("tiles"); t.innerHTML = "";
-    const revealed = new Set(order.slice(0, over && !won ? 6 : guesses.length));
-    if (over) order.forEach(i => revealed.add(i));
-    for (let i = 0; i < 6; i++) {
-      const d = document.createElement("div");
-      d.className = "tile" + (revealed.has(i) ? " open" : "");
-      d.textContent = "";
-      t.append(d);
-    }
+    renderHints();
     const ol = $("guesses"); ol.innerHTML = "";
     const target = pool.find(t => t.name === answer);
     guesses.forEach(name => {
@@ -85,8 +161,8 @@
     $("end-title").textContent = won ? `Got it in ${guesses.length}! It's ${answer}.` : `It was ${answer}.`;
     const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(MAX - guesses.length);
     $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
-    const cap = pool.find(t => t.name === answer).cap;
-    $("end-detail").textContent = cap ? `${COUNTRIES[cap.country]} flag · captain/star: ${cap.name}` : "";
+    const h = HINTS[answer];
+    $("end-detail").textContent = h ? `Song: ${h.s[0]} (${h.s[1]}) · Fans: ${h.f || "none known"} · Mascot: ${h.m || "none"}` : "";
     $("end").hidden = false;
     if (mode === "daily" && !restore) recordStats();
     showStats();
@@ -125,7 +201,7 @@
   function submit(code) {
     if (over || !code || guesses.includes(code)) return;
     guesses.push(code);
-    if (mode === "daily") store.set(key, { guesses, order, answer });
+    if (mode === "daily") store.set(key, { guesses, answer });
     $("guess").value = ""; options();
     if (code === answer || guesses.length >= MAX) finish(false); else render();
   }

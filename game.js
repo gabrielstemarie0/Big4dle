@@ -141,7 +141,7 @@
     buildHints(pool.find(t => t.name === answer));
     $("end").hidden = true;
     $("guess").value = "";
-    render();
+    render(); updateButton();
     if (guesses.length && (guesses.includes(answer) || guesses.length >= MAX)) finish(true);
   }
 
@@ -197,13 +197,14 @@
   // Autocomplete: every team, so nothing about the sport is given away
   const candidates = () => pool.map(t => t.name);
   let matches = [], sel = -1;
+  // Picking a suggestion only fills the search box (see choose below); nothing is submitted.
   function options() {
     const q = $("guess").value.trim().toLowerCase();
     matches = q ? candidates().filter(n => n.toLowerCase().includes(q) && !guesses.includes(n)) : [];
     
     sel = matches.length ? 0 : -1;
     const ul = $("options"); ul.innerHTML = "";
-    matches.forEach((c, i) => { const li = document.createElement("li"); li.textContent = c; li.setAttribute("role", "option"); if (i === sel) li.className = "on"; li.onmousedown = e => { e.preventDefault(); submit(c); }; ul.append(li); });
+    matches.forEach((c, i) => { const li = document.createElement("li"); li.textContent = c; li.setAttribute("role", "option"); if (i === sel) li.className = "on"; li.onmousedown = e => { e.preventDefault(); choose(c); }; ul.append(li); });
     ul.hidden = !matches.length;
   }
   function move(d) { if (!matches.length) return; sel = (sel + d + matches.length) % matches.length; [...$("options").children].forEach((li, i) => li.className = i === sel ? "on" : ""); }
@@ -216,18 +217,30 @@
     if (code === answer || guesses.length >= MAX) finish(false); else render();
   }
 
-  $("guess").addEventListener("input", options);
+  $("guess").addEventListener("input", () => { options(); updateButton(); });
   $("guess").addEventListener("keydown", e => {
     if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
     else if (e.key === "Escape") $("options").hidden = true;
   });
   $("guess").addEventListener("blur", () => setTimeout(() => $("options").hidden = true, 100));
+  // A guess is only ever sent when the box holds a full team name and the player presses Guess / Enter.
+  const exactMatch = () => { const q = $("guess").value.trim().toLowerCase(); return candidates().find(n => n.toLowerCase() === q && !guesses.includes(n)) || null; };
+  function updateButton() { $("submit").classList.toggle("soft", !exactMatch()); }
+  function choose(name) { $("guess").value = name; matches = []; sel = -1; $("options").hidden = true; updateButton(); }
+  let noticeTimer;
+  function notice(msg) {
+    $("status").textContent = msg; $("status").classList.add("warn");
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { $("status").classList.remove("warn"); $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`; }, 2200);
+  }
   $("form").addEventListener("submit", e => {
     e.preventDefault();
-    const q = $("guess").value.trim().toLowerCase();
-    const exact = candidates().find(n => n.toLowerCase() === q);
-    submit(exact || (sel >= 0 ? matches[sel] : null));
+    const exact = exactMatch();
+    if (exact) { submit(exact); updateButton(); return; }
+    // Not a full team name yet: never guess on the player's behalf.
+    if (matches.length && sel >= 0) { choose(matches[sel]); notice("Press Guess to confirm"); return; }   // Enter on a highlighted suggestion fills the box; press Enter/Guess again to submit
+    notice($("guess").value.trim() ? "Pick a team from the list" : "Type a team first");
   });
   $("copy").onclick = async () => { try { await navigator.clipboard.writeText($("share-text").textContent); $("copy").textContent = "Copied!"; } catch { $("copy").textContent = "Copy failed"; } setTimeout(() => $("copy").textContent = "Copy result", 1500); };
   $("practice").onclick = () => setup("practice");

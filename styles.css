@@ -78,3 +78,5 @@ dialog li{margin:6px 0}
 .bands i{display:block}
 .cap.chip{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:4px}
 .redact{display:inline-block;height:.95em;vertical-align:-.12em;border-radius:3px;background:var(--muted);opacity:.45;margin:0 .12em}
+.btn.soft:not(:disabled){opacity:.45}
+.warn{color:var(--ink);font-weight:600}

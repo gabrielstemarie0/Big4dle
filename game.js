@@ -1,6 +1,6 @@
 (() => {
   const SPORTS = Object.keys(TEAMS);
-  const MAX = 6;
+  const MAX = 5;
   const $ = id => document.getElementById(id);
 
   // Seeded PRNG so everyone gets the same team on a given day (the reveal order is random per player).
@@ -159,7 +159,7 @@
     render();
     $("status").textContent = "";
     $("end-title").textContent = won ? `Got it in ${guesses.length}! It's ${answer}.` : `It was ${answer}.`;
-    const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(MAX - guesses.length);
+    const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(Math.max(0, MAX - guesses.length));
     $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
     const h = HINTS[answer];
     $("end-detail").textContent = h ? `Song: ${h.s[0]} (${h.s[1]}) · Fans: ${h.f || "none known"} · Mascot: ${h.m || "none"}` : "";

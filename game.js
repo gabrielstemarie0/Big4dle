@@ -1,5 +1,7 @@
 (() => {
   const SPORTS = Object.keys(TEAMS);
+  // All-time mode is locked for now. To unlock it, set this to false (everything else is already built).
+  const ALLTIME_LOCKED = true;
   const MAX = 5;
   const $ = id => document.getElementById(id);
 
@@ -247,6 +249,7 @@
   $("mode-btn").onclick = () => setup(mode === "daily" ? "practice" : "daily");
 
   function setEdition(e, m = "daily") {
+    if (ALLTIME_LOCKED && e === "alltime") e = "current";
     edition = e;
     $("tab-current").setAttribute("aria-selected", e === "current");
     $("tab-alltime").setAttribute("aria-selected", e === "alltime");
@@ -254,7 +257,12 @@
   }
   $("help-btn").onclick = () => $("help").showModal();
   $("tab-current").onclick = () => setEdition("current");
-  $("tab-alltime").onclick = () => setEdition("alltime");
+  if (ALLTIME_LOCKED) {
+    const tab = $("tab-alltime");
+    tab.classList.add("locked"); tab.setAttribute("aria-disabled", "true"); tab.title = "Locked for now";
+    tab.innerHTML = 'All-time <span aria-hidden="true">🔒</span>';
+    tab.onclick = () => notice("All-time is locked for now");
+  } else $("tab-alltime").onclick = () => setEdition("alltime");
   // Links: ?practice opens a fresh random practice round; add &edition=alltime for the all-time pool.
   const q = new URLSearchParams(location.search);
   setEdition(q.get("edition") === "alltime" ? "alltime" : "current", q.has("practice") ? "practice" : "daily");

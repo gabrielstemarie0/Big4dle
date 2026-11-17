@@ -11,3 +11,4 @@ Guess the pro team (NFL, MLB, NBA, NHL) from four hints. 5 guesses.
 
 - Deploys: pushing to `main` deploys automatically (Cloudflare Pages).
 - Practice link: `?practice` opens a random practice round (add `&edition=alltime` for the all-time pool). Practice rounds never change your daily game or streak.
+- All-time mode is locked for now: set `ALLTIME_LOCKED = false` at the top of `game.js` to unlock it. The tab shows a lock, and `?edition=alltime` links fall back to current teams while it is locked.

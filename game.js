@@ -24,6 +24,7 @@
 
   // ---- Hint board: four boxes, top-left to bottom-right. One more box opens after every guess.
   //      1 team song (play button) · 2 fan base · 3 mascot · 4 home jersey colours
+  const CLIP_SECONDS = 15;   // how much of each song can be played
   const STEPS = ["Team song", "Fan base", "Mascot", "Home jersey colors"];
   const audio = new Audio(); audio.preload = "none";
   let boxes = [], hintTeam = null, tried = false;
@@ -63,7 +64,7 @@
     const h = HINTS[hintTeam.name];
     audio.pause(); audio.removeAttribute("src"); tried = false;
     if (h && h.u) audio.src = h.u;
-    box.innerHTML = `<div class="cap">Team song</div><button class="play" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button><div class="sub">30-second clip</div>`;
+    box.innerHTML = `<div class="cap">Team song</div><button class="play" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button><div class="sub">15-second clip</div>`;
     const btn = box.querySelector(".play");
     const recover = async () => {
       if (!tried && h) { tried = true; const u = await lookupPreview(h.s[0], h.s[1]); if (u) { audio.src = u; try { await audio.play(); return; } catch {} } }
@@ -76,7 +77,11 @@
     };
     audio.onplay = () => btn.classList.add("playing");
     audio.onpause = audio.onended = () => btn.classList.remove("playing");
-    audio.ontimeupdate = () => btn.style.setProperty("--p", audio.duration ? (audio.currentTime / audio.duration * 100).toFixed(1) : 0);
+    audio.ontimeupdate = () => {
+      // Only the first 15 seconds of the preview are ever played.
+      if (audio.currentTime >= CLIP_SECONDS) { audio.pause(); audio.currentTime = 0; btn.style.setProperty("--p", 0); return; }
+      btn.style.setProperty("--p", (audio.currentTime / CLIP_SECONDS * 100).toFixed(1));
+    };
     audio.onerror = () => { if (audio.getAttribute("src")) recover(); };
   }
 

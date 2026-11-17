@@ -151,11 +151,12 @@
     const target = pool.find(t => t.name === answer);
     guesses.forEach(name => {
       const t = pool.find(x => x.name === name), li = document.createElement("li");
+      // right team: the whole row turns green. right sport (wrong team): only the ball is highlighted yellow.
+      li.className = name === answer ? "ok" : t.sport === sport ? "close" : "";
       const n = document.createElement("span"); n.className = "name"; n.textContent = name;
       const right = document.createElement("span"); right.className = "right";
-      right.innerHTML = BALLS[t.sport];
-      const km = document.createElement("span");
-      km.className = "km " + (name === answer ? "ok" : t.sport === sport ? "close" : "");
+      right.innerHTML = `<span class="ballwrap">${BALLS[t.sport]}</span>`;
+      const km = document.createElement("span"); km.className = "km";
       km.textContent = `${kmBetween(t.loc, target.loc).toLocaleString("en-US")} km`;
       right.append(km); li.append(n, right); ol.append(li);
     });

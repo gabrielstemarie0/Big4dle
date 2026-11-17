@@ -39,8 +39,11 @@ input::placeholder{color:var(--muted)}
 .guesses li .right{display:flex;align-items:center;gap:8px}
 .guesses li .ball{width:18px;height:18px;flex:none;display:block}
 .guesses li .km{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink)}
-.guesses li .km.ok{background:var(--good);border-color:var(--good);color:#fff}
-.guesses li .km.close{background:var(--yellow);border-color:var(--yellow);color:#111}
+.guesses li .ballwrap{display:grid;place-items:center;width:28px;height:28px;border-radius:50%}
+.guesses li.close .ballwrap{background:var(--yellow)}
+.guesses li.ok{background:var(--good);border-color:var(--good);color:#fff;font-weight:600}
+.guesses li.ok .ballwrap{background:rgba(255,255,255,.92)}
+.guesses li.ok .km{background:transparent;border-color:rgba(255,255,255,.75);color:#fff}
 .end{text-align:center;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:18px 16px}
 .end h2{margin:0 0 4px;font-size:18px;letter-spacing:-.01em}
 .detail{margin:0 0 10px;color:var(--muted);font-size:13px}

@@ -99,7 +99,7 @@
   }
 
   function renderHints() {
-    const open = over ? 4 : Math.min(4, 1 + guesses.length);
+    const open = over ? 4 : Math.min(4, guesses.length);   // nothing is open until the first guess
     boxes.forEach((box, i) => {
       if (i < open && box.classList.contains("locked")) { box.classList.remove("locked"); box.classList.add("open"); fillBox(i); }
       else if (i >= open && !box.classList.contains("locked")) { box.classList.add("locked"); box.classList.remove("open"); box.innerHTML = ""; }

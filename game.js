@@ -152,7 +152,7 @@
     });
   }
 
-  let edition = "current", mode = "daily", sport, pool, answer, guesses, over, won, key;
+  let edition = "current", mode = "daily", sport, pool, answer, guesses, over, won, key, dayShown = null;
 
   function setup(m) {
     mode = m;
@@ -163,6 +163,7 @@
     const sp = pool.filter(t => t.sport === sport);
     answer = sp[Math.floor(r() * sp.length)].name;
     key = "b4-day-" + edition + "-" + seed;
+    dayShown = m === "daily" ? seed : null;
     const saved = m === "daily" ? store.get(key, null) : null;
     if (m === "daily") {
       // Every team gets a turn before any repeats (see schedule.js). A saved game keeps its own answer.
@@ -296,6 +297,34 @@
     tab.innerHTML = 'All-time <span aria-hidden="true">🔒</span>';
     tab.onclick = () => notice("All-time is locked for now");
   } else $("tab-alltime").onclick = () => setEdition("alltime");
+  // Feedback: sent to /api/feedback, which stores it privately for the site owner.
+  const fbDlg = $("feedback"), fbStatus = $("fb-status");
+  $("fb-open").onclick = () => { fbStatus.textContent = ""; fbStatus.className = "fb-status"; $("fb-send").disabled = false; fbDlg.showModal(); };
+  $("fb-cancel").onclick = () => fbDlg.close();
+  $("fb-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const message = $("fb-msg").value.trim();
+    if (message.length < 3) { fbStatus.textContent = "Please write a little more."; fbStatus.className = "fb-status err"; return; }
+    $("fb-send").disabled = true; fbStatus.className = "fb-status"; fbStatus.textContent = "Sending...";
+    try {
+      const res = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: $("fb-kind").value, message, website: $("fb-hp").value,
+        team: answer, edition, mode, day: dayShown || today(), guesses: guesses.length, viewport: `${innerWidth}x${innerHeight}`
+      }) });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok && out.ok) { fbStatus.className = "fb-status ok"; fbStatus.textContent = "Thanks, sent!"; $("fb-msg").value = ""; setTimeout(() => { if (fbDlg.open) fbDlg.close(); }, 1400); }
+      else { fbStatus.className = "fb-status err"; fbStatus.textContent = out.error || "Couldn't send. Please try again."; $("fb-send").disabled = false; }
+    } catch { fbStatus.className = "fb-status err"; fbStatus.textContent = "Couldn't send. Check your connection and try again."; $("fb-send").disabled = false; }
+  });
+
+  // New day: if the date changes while the page is open (past midnight, or coming back to the tab), load the new puzzle.
+  function checkNewDay() {
+    if (mode === "daily" && dayShown && today() !== dayShown) { setup("daily"); notice("New day, new puzzle!"); }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkNewDay(); });
+  window.addEventListener("focus", checkNewDay);
+  setInterval(checkNewDay, 30000);
+
   // Links: ?practice opens a fresh random practice round; add &edition=alltime for the all-time pool.
   const q = new URLSearchParams(location.search);
   setEdition(q.get("edition") === "alltime" ? "alltime" : "current", q.has("practice") ? "practice" : "daily");

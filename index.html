@@ -60,6 +60,8 @@
     </section>
   </main>
 
+  <footer class="foot"><button class="link" id="fb-open" type="button">Send feedback</button></footer>
+
   <dialog id="help">
     <h2>How to play</h2>
     <ul>
@@ -69,6 +71,29 @@
       <li>The km shows how far your guess is.</li>
     </ul>
     <form method="dialog"><button class="btn">Got it</button></form>
+  </dialog>
+
+  <dialog id="feedback">
+    <form id="fb-form" autocomplete="off">
+      <h2>Send feedback</h2>
+      <p class="fb-intro">Wrong song, mascot or fan name? Something broken? An idea? Tell us, we read everything.</p>
+      <label for="fb-kind">What is it about?</label>
+      <select id="fb-kind">
+        <option value="wrong">Wrong info (song, mascot, fans)</option>
+        <option value="bug">Something is broken</option>
+        <option value="idea">Idea or suggestion</option>
+        <option value="other">Something else</option>
+      </select>
+      <label for="fb-msg">Your message</label>
+      <textarea id="fb-msg" rows="5" maxlength="1000" placeholder="For wrong info, tell us which team and what should change." required></textarea>
+      <input class="hp" type="text" id="fb-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="fb-note">We also send your device type and today's puzzle so we can track down problems. No name or email is collected.</p>
+      <p class="fb-status" id="fb-status" role="status" aria-live="polite"></p>
+      <div class="row">
+        <button class="btn ghost" id="fb-cancel" type="button">Cancel</button>
+        <button class="btn" id="fb-send" type="submit">Send</button>
+      </div>
+    </form>
   </dialog>
 
   <script src="teams.js"></script>

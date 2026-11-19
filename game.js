@@ -199,6 +199,7 @@
     });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;
+    if (window.Bg) Bg.update(guesses.length, over, sport);
   }
 
   function finish(restore) {

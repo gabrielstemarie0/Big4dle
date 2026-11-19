@@ -104,3 +104,9 @@ dialog li{margin:6px 0}
 #feedback .row{margin-top:10px;justify-content:flex-end}
 .hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;opacity:0}
 #fb-form{display:block}
+
+/* Animated background (bg.js): black until the first guess, then bouncing balls, then the winning play */
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.top,main,.foot{position:relative;z-index:1;transition:opacity .35s}
+body.watch .top,body.watch main,body.watch .foot{opacity:0;pointer-events:none}
+body.finale main{text-shadow:0 1px 2px rgba(0,0,0,.6)}

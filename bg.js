@@ -81,10 +81,14 @@
   }
   const lum = c => { const v = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
   const lift = c => { if (lum(c) > .1) return c; const v = [1, 3, 5].map(i => Math.round(parseInt(c.slice(i, i + 2), 16) * .6 + 255 * .4)); return "#" + v.map(x => x.toString(16).padStart(2, "0")).join(""); };
-  function update(n, over, s, team) {
+const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16) - parseInt(c.slice(i, i + 2), 16)));
+  function update(n, over, s, team, rival) {
     if (team) {
       TM = { j: lift(team.c1), p: lift(team.c2 === team.c1 ? team.c3 : team.c2), h: lift(team.c3 === team.c1 ? team.c2 : team.c3) };
-      OP = lum(team.c1) > .55 ? { j: "#2f3545", p: "#20242f", h: "#2f3545" } : { j: "#e6e9ef", p: "#7a808c", h: "#e6e9ef" };
+      if (rival) OP = { j: lift(rival.c1), p: lift(rival.c2 === rival.c1 ? rival.c3 : rival.c2), h: lift(rival.c3 === rival.c1 ? rival.c2 : rival.c3) };
+      else OP = lum(team.c1) > .55 ? { j: "#2f3545", p: "#20242f", h: "#2f3545" } : { j: "#e6e9ef", p: "#7a808c", h: "#e6e9ef" };
+      // if both teams wear nearly the same colour, the rival switches to its second colour so they can be told apart
+      if (rival && dist(TM.j, OP.j) < 110) { const alt = [rival.c2, rival.c3, "#f4f4f4"].map(lift).find(c => dist(TM.j, c) >= 110); OP = { j: alt, p: OP.p, h: OP.h }; }
     }
     if (over) { if (phase !== "finale" || sport !== s) { phase = "finale"; sport = s; finaleAt = performance.now(); } }
     else if (n === 0) { phase = "none"; watch(false); }

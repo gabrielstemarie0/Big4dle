@@ -199,7 +199,8 @@
     });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;
-    if (window.Bg) Bg.update(guesses.length, over, sport, pool.find(t => t.name === answer));
+    if (window.Bg) const tm = pool.find(t => t.name === answer), rv = typeof RIVALS !== "undefined" && RIVALS[answer];
+    Bg.update(guesses.length, over, sport, tm, rv && TEAMS[tm.sport].alltime.find(t => t.name === rv));
   }
 
   function finish(restore) {

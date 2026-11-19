@@ -134,13 +134,24 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
 
   /* ---------- people (two-piece legs and arms, per-sport headgear) ---------- */
   function personImpl(x, y, h, o) {
-    const d = o.d || 1, th = h * .235, sh = h * .235, tor = h * .34, ua = h * .15, fa = h * .15, lw = h * .1 * (o.fat || 1);
+    const d = o.d || 1, th = h * .235, sh = h * .235, tor = h * .34, ua = h * .19, fa = h * .17, lw = h * .1 * (o.fat || 1);
     const lean = o.lean || 0, hy = y - (th + sh) * .96 + (o.bob || 0) + (o.crouch || 0), hx = x;
     const sx = hx + Math.sin(lean) * d * tor, sy = hy - Math.cos(lean) * tor;
     const A = (bx, by, ang, len) => [bx + Math.sin(ang) * d * len, by + Math.cos(ang) * len];
     const l1 = o.l1 || 0, l2 = o.l2 || 0, k1 = o.k1 || 0, k2 = o.k2 || 0;
     const kn1 = A(hx, hy, l1, th), kn2 = A(hx, hy, l2, th), ft1 = A(kn1[0], kn1[1], l1 - k1, sh), ft2 = A(kn2[0], kn2[1], l2 - k2, sh);
-    const a1 = o.a1 == null ? .25 : o.a1, a2 = o.a2 == null ? .25 : o.a2, e1 = o.e1 == null ? .25 : o.e1, e2 = o.e2 == null ? .25 : o.e2;
+    let a1 = o.a1 == null ? .25 : o.a1, a2 = o.a2 == null ? .25 : o.a2, e1 = o.e1 == null ? .25 : o.e1, e2 = o.e2 == null ? .25 : o.e2;
+    // two-bone arm IK: o.t1 / o.t2 are points the hands should grip (the bat, the stick); the elbow sits below the line
+    const ik = (tg, up) => {
+      const dx = tg[0] - sx, dy = tg[1] - sy, dd = Math.min(Math.max(Math.hypot(dx, dy), Math.abs(ua - fa) + 1), ua + fa - 1), base = Math.atan2(dy, dx);
+      const al = Math.acos(Math.max(-1, Math.min(1, (ua * ua + dd * dd - fa * fa) / (2 * ua * dd))));
+      const c = [base - al, base + al].map(th => [sx + Math.cos(th) * ua, sy + Math.sin(th) * ua, th]);
+      const el = (up ? c[0][1] < c[1][1] : c[0][1] > c[1][1]) ? c[0] : c[1], hx2 = sx + Math.cos(base) * dd, hy2 = sy + Math.sin(base) * dd;
+      const au = Math.atan2(Math.cos(el[2]) * d, Math.sin(el[2])), af = Math.atan2((hx2 - el[0]) * d, hy2 - el[1]);
+      return [au, af - au];
+    };
+    if (o.t1) { const r = ik(o.t1, o.up1); a1 = r[0]; e1 = r[1]; }
+    if (o.t2) { const r = ik(o.t2, o.up2); a2 = r[0]; e2 = r[1]; }
     const el1 = A(sx, sy, a1, ua), el2 = A(sx, sy, a2, ua), h1 = A(el1[0], el1[1], a1 + e1, fa), h2 = A(el2[0], el2[1], a2 + e2, fa);
     const hd = [sx + Math.sin(lean) * d * h * .11, sy - Math.cos(lean) * h * .11];
     const out = { h1, h2, s: [sx, sy], k1: ft1, k2: ft2, head: hd };
@@ -249,7 +260,7 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
   /* ---------- scene 1: football, hail mary touchdown ---------- */
   function football(t) {
     const gy = 462, dep = 112, GL = 1260, EZ = 160, LOS = 430, F = TMX, W_ = WIN;
-    const cam = lerp(500, 1120, ease(seg(t, 1.45, 4.2))) + lerp(0, -40, seg(t, 5.2, 6));
+    const cam = lerp(500, 1120, ease(seg(t, 1.45, 4.2))) + (W_ ? lerp(0, -40, seg(t, 5.2, 6)) : -230 * ease(seg(t, 4.8, 6.6)));
     look(cam); backdrop("#04070e", "#0c1a2c", "#124226", gy);
     lightGlow([cam - 300, cam + 280], gy - 190, 190);
     crowd(gy - 105, gy - 2, t, F.ez);
@@ -287,8 +298,11 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
     add(wy, () => person(wx, wy - jump, H, wr));
     const cbp = prog(seg(t, .3, 4.4)), cbx = lerp(495, 1275, cbp), cby = gy + 46, turned = t > 1.3, cr = run(t, 11.5);
     add(cby, () => person(cbx, cby - 40 * Math.sin(Math.PI * seg(t, 4.1, 4.9)), H, kit(O, Object.assign({ n: "24", d: turned ? 1 : -1 }, t < .3 ? { lean: .05, crouch: 8, l1: .3, l2: -.3, k1: .4, k2: .4, a1: .6, a2: .6, e1: .5, e2: .5 } : t < 1.3 ? Object.assign({}, cr, { l1: -cr.l1 * .5, l2: -cr.l2 * .5, lean: -.05 }) : t < 4.1 ? Object.assign({}, cr, { lean: .2 }) : { l1: .3, l2: -.2, k1: .5, k2: .5, a1: 2.3, a2: 2.0, e1: .1, e2: .1 }))));
-    const sx2 = lerp(900, 1250, ease(seg(t, 1.8, 4.6))), sy2 = gy + 84, sj = 45 * Math.sin(Math.PI * seg(t, 4.35, 5.05));
-    add(sy2, () => person(sx2, sy2 - sj, H, kit(O, Object.assign({ n: "31", d: 1 }, t < 4.35 ? Object.assign(run(t, 12), { lean: .2 }) : { a1: 2.5, a2: 2.4, e1: .1, e2: .1, k1: .5, k2: .5, l1: .5, l2: -.3 }))));
+    const tI = 4.3, ixx = 1195;
+    const sx2 = W_ ? lerp(900, 1250, ease(seg(t, 1.8, 4.6))) : (t < 4.8 ? lerp(900, ixx, ease(seg(t, 1.8, tI))) : ixx - 210 * ease(seg(t, 4.8, 6.6))), sy2 = gy + 84, sj = W_ ? 45 * Math.sin(Math.PI * seg(t, 4.35, 5.05)) : 58 * Math.sin(Math.PI * seg(t, 3.85, 4.75));
+    const sRun = run(t, 12.5, 1.05), sPose = W_ ? (t < 4.35 ? Object.assign(run(t, 12), { lean: .2 }) : { a1: 2.5, a2: 2.4, e1: .1, e2: .1, k1: .5, k2: .5, l1: .5, l2: -.3 })
+      : t < 3.85 ? Object.assign(run(t, 12), { lean: .2 }) : t < 4.78 ? { a1: 2.9, a2: 2.8, e1: .05, e2: .05, k1: .5, k2: .8, l1: .6, l2: -.2 } : Object.assign({}, sRun, { a1: .55, e1: 1.75, lean: .18 });
+    add(sy2, () => person(sx2, sy2 - sj, H, kit(O, Object.assign({ n: "31", d: (W_ || t < 4.78) ? 1 : -1 }, sPose))));
     const rx = GL + 34, ry = gy + 102, sig = W_ ? seg(t, 5.0, 5.4) : 0;
     add(ry, () => person(rx, ry, H, { col: "#eceff3", pants: "#1b1b1f", trim: "#1b1b1f", shin: "#1b1b1f", hat: "cap", helmet: "#1b1b1f", d: -1, a1: lerp(.25, 2.9, ease(sig)), a2: lerp(.25, 2.9, ease(sig)), e1: .05, e2: .05, l1: t > 3 ? .1 : 0 }));
     flush();
@@ -296,13 +310,13 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
     const R = [qd.h1[0] + 8, qd.h1[1] - 10], Cp = (() => { const wp = personImpl(wx, wy - 58 * Math.sin(Math.PI * seg(4.35, 3.95, 4.8)), H, Object.assign({ dry: true }, wr, { a1: 2.85, a2: 2.75, e1: .05, e2: .05, bob: 0 })); return [1330 + 4 + 0, wp.h1[1]]; })();
     let bx, by, ba = 0;
     const rcv = personImpl(wx, wy - jump, H, Object.assign({ dry: true }, wr));
-    // lost round: the throw sails just over the receiver's fingertips and lands in the end zone
-    const G = [1430, gy + 66], us = (Cp[0] - R[0]) / (G[0] - R[0]), tEnd = 1.65 + (4.35 - 1.65) / us;
-    const missPeak = (lerp(R[1], G[1], us) - (Cp[1] - 85)) / (4 * us * (1 - us));
+    // lost round: the safety jumps the route and intercepts the pass, then runs it back
+    const sdry = (tt, jj) => personImpl(tt < 4.78 ? ixx : sx2, sy2 - jj, H, { dry: true, d: tt < 4.78 ? 1 : -1, a1: 2.9, a2: 2.8, e1: .05, e2: .05, k1: .5, k2: .8, l1: .6, l2: -.2 }).h1;
+    const Ipt = (() => { const h = sdry(4.3, 58 * Math.sin(Math.PI * seg(4.3, 3.85, 4.75))); return [h[0] + 2, h[1] - 4]; })();
     if (t < 1.65) { bx = qd.h1[0] + 4; by = qd.h1[1]; ba = -.35; }
     else if (W_ && t < 4.35) { const u = seg(t, 1.65, 4.35), p0 = arcPos(R, Cp, u, 300), p1 = arcPos(R, Cp, Math.min(1, u + .01), 300); bx = p0[0]; by = p0[1]; ba = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]); }
-    else if (!W_ && t < tEnd) { const u = seg(t, 1.65, tEnd), p0 = arcPos(R, G, u, missPeak), p1 = arcPos(R, G, Math.min(1, u + .01), missPeak); bx = p0[0]; by = p0[1]; ba = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]); }
-    else if (!W_) { const s2 = t - tEnd; bx = G[0] + 40 * Math.min(s2, 1.2); by = G[1] - 34 * Math.abs(Math.sin(s2 * 7)) * Math.exp(-s2 * 2.2); ba = t * 6; }
+    else if (!W_ && t < 4.3) { const u = seg(t, 1.65, 4.3), p0 = arcPos(R, Ipt, u, 280), p1 = arcPos(R, Ipt, Math.min(1, u + .01), 280); bx = p0[0]; by = p0[1]; ba = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]); }
+    else if (!W_) { const h = personImpl(sx2, sy2 - sj, H, Object.assign({ dry: true }, sPose, { d: t < 4.78 ? 1 : -1 })).h1; bx = h[0] + (t < 4.78 ? 2 : -2); by = h[1] - 3; ba = -.3; }
     else { bx = rcv.h1[0] + 4; by = rcv.h1[1] - 4; ba = t > 5.5 ? -1.1 : -.4; }
     fball("football", bx, by, 13.5, ba, t * 34);
     if (W_) banner(t, 5.0);
@@ -327,6 +341,7 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
     ctx.fillStyle = F.trim; ctx.globalAlpha = .9; ctx.font = "800 26px -apple-system,Segoe UI,Arial,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(F.nick, 330, gy + dep / 2); ctx.globalAlpha = 1;
     // stanchion, backboard, rim, net
     const buzz = t >= 1.7, swish = 3.9;
+    onFront(() => {   // the hoop, net and clock sit on the front layer so the game board never hides them
     ctx.strokeStyle = "#4a4f5a"; ctx.lineWidth = 14; ctx.lineCap = "round"; line(hx + 70, fyH + 8, hx + 70, rimY - 70); line(hx + 70, rimY - 70, hx + 4, rimY - 60);
     ctx.fillStyle = "#e9eef5"; ctx.fillRect(hx - 6, rimY - 108, 12, 128);
     if (buzz) { ctx.fillStyle = `rgba(255,40,40,${.5 + .5 * Math.sin(t * 18)})`; ctx.fillRect(hx - 12, rimY - 114, 4, 140); ctx.fillRect(hx + 8, rimY - 114, 4, 140); ctx.fillRect(hx - 12, rimY - 114, 24, 4); }
@@ -339,6 +354,7 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
     ctx.fillStyle = "rgba(0,0,0,.82)"; ctx.fillRect(hx - 150, rimY - 190, 150, 56);
     ctx.font = "700 36px ui-monospace,Menlo,monospace"; ctx.textAlign = "center"; ctx.fillStyle = buzz ? (Math.sin(t * 18) > 0 ? "#ff4040" : "#a02020") : "#ff9a3c";
     ctx.fillText(`0:0${Math.max(0, 3 - t * 3 / 1.7).toFixed(1)}`, hx - 75, rimY - 150);
+    });
     // --- players
     const T = TM, O = OP, kit = (k, o) => Object.assign({ col: k.j, pants: k.j, trim: k.t, num: k.num, short: 1, shortLeg: 1, shoe: k.t, n: "", glove: null }, o);
     const sm = u => u * u * (3 - 2 * u);
@@ -369,57 +385,82 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
 
   /* ---------- scene 3: hockey, shootout winner ---------- */
   function hockey(t) {
-    const gy = 466, dep = 112, GL = 1040, F = TMX, fyG = gy + 58, W_ = WIN;
-    const cam = lerp(560, 800, ease(seg(t, .3, 2.5)));
+    const gy = 466, dep = 112, GL = 1040, F = TMX, W_ = WIN, mix = (p, q, u) => [lerp(p[0], q[0], u), lerp(p[1], q[1], u)];
+    const cam = lerp(560, 810, ease(seg(t, .3, 2.5)));
     look(cam); backdrop("#060d18", "#102239", "#bcd8e8", gy);
     crowd(gy - 150, gy - 74, t, F.ez);
     ctx.fillStyle = "#cfdce6"; ctx.fillRect(-2000, gy - 74, 5200, 74);
     ctx.fillStyle = F.ez; ctx.fillRect(-2000, gy - 30, 5200, 12); ctx.fillStyle = "rgba(190,225,255,.18)"; ctx.fillRect(-2000, gy - 150, 5200, 76);
     ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 3; for (let x = -2000; x < 3200; x += 120) line(x, gy - 150, x, gy);
     ctx.fillStyle = "#bcd8e8"; ctx.fillRect(-2000, gy, 5200, dep);
-    // bench: team on the left, the rival on the right, watching over the boards
     const T = TM, O = OP, kit = (k, o) => Object.assign({ col: k.j, pants: k.pn, shin: k.pn, trim: k.t, num: k.num, hat: "hk", helmet: k.j, long: 1, skate: 1, shoe: "#14151a" }, o);
     // ice markings, lined up with the goal line
     ctx.lineCap = "butt"; ctx.fillStyle = "rgba(210,40,60,.85)"; ctx.fillRect(GL - 2, gy, 4, dep);
     ctx.fillStyle = "rgba(40,90,200,.35)"; ctx.fillRect(GL - 85, gy + 6, 85, dep - 12); ctx.strokeStyle = "rgba(40,90,200,.9)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(GL, gy + dep / 2, 85, dep / 2 - 8, 0, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
     ctx.strokeStyle = "rgba(210,40,60,.8)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(640, gy + dep / 2, 90, 44, 0, 0, 7); ctx.stroke(); ctx.fillStyle = "rgba(210,40,60,.9)"; disc(640, gy + dep / 2, 5);
     ctx.fillStyle = "rgba(40,90,200,.7)"; ctx.fillRect(250, gy, 8, dep);
-    // net
-    const goal = W_ && t > 2.95, rip = goal ? Math.sin((t - 2.95) * 20) * 5 * Math.exp(-(t - 2.95) * 3) : 0, ny = gy + dep / 2 + 6;
-    ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 1.6;
-    for (let i = 0; i <= 8; i++) { const yy = ny - 122 + i * 15; line(GL, yy, GL + 58 + rip, yy + 5); }
-    for (let i = 0; i <= 6; i++) line(GL + i * 9, ny - 122, GL + 14 + i * 7.5 + rip, ny - 6);
-    ctx.strokeStyle = "#d62839"; ctx.lineWidth = 8; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(GL, ny); ctx.lineTo(GL, ny - 124); ctx.lineTo(GL + 58, ny - 116); ctx.stroke();
-    if (goal) { ctx.save(); ctx.fillStyle = `rgba(255,50,50,${.55 + .45 * Math.sin(t * 20)})`; ctx.shadowColor = "#ff2020"; ctx.shadowBlur = 40; disc(GL + 30, ny - 160, 16); ctx.restore(); }
+    // --- the goal, drawn at an angle so its open mouth (between the near and far post) faces the shooter
+    const ny = gy + 62, goal = W_ && t > 2.98, rip = goal ? Math.sin((t - 2.98) * 20) * 5 * Math.exp(-(t - 2.98) * 3) : 0;
+    const M1 = [GL, ny], M2 = [GL, ny - 118], M3 = [GL + 26, ny - 134], M4 = [GL + 26, ny - 22], B1 = [GL + 56 + rip, ny - 2], B2 = [GL + 56 + rip, ny - 106], B3 = [GL + 82 + rip, ny - 124], B4 = [GL + 82 + rip, ny - 22];
+    const mesh = (P, Q, R, S2, n, m) => { for (let i = 0; i <= n; i++) { const p = mix(P, Q, i / n), q = mix(S2, R, i / n); line(p[0], p[1], q[0], q[1]); } for (let j = 0; j <= m; j++) { const p = mix(P, S2, j / m), q = mix(Q, R, j / m); line(p[0], p[1], q[0], q[1]); } };
+    ctx.lineWidth = 1.4; ctx.strokeStyle = "rgba(255,255,255,.32)"; mesh(B1, B2, B3, B4, 7, 6); mesh(M4, M3, B3, B4, 6, 4); mesh(M2, M3, B3, B2, 6, 4);
+    ctx.strokeStyle = "#d62839"; ctx.lineWidth = 7; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(M4[0], M4[1]); ctx.lineTo(M3[0], M3[1]); ctx.lineTo(M2[0], M2[1]); ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(214,40,57,.8)"; ctx.beginPath(); ctx.moveTo(B1[0], B1[1]); ctx.lineTo(B4[0], B4[1]); ctx.moveTo(B2[0], B2[1]); ctx.lineTo(B3[0], B3[1]); ctx.moveTo(M2[0], M2[1]); ctx.lineTo(B2[0], B2[1]); ctx.moveTo(M3[0], M3[1]); ctx.lineTo(B3[0], B3[1]); ctx.moveTo(M1[0], M1[1]); ctx.lineTo(B1[0], B1[1]); ctx.moveTo(M4[0], M4[1]); ctx.lineTo(B4[0], B4[1]); ctx.stroke();
+    if (goal) { ctx.save(); ctx.fillStyle = `rgba(255,50,50,${.55 + .45 * Math.sin(t * 20)})`; ctx.shadowColor = "#ff2020"; ctx.shadowBlur = 40; disc(GL + 36, ny - 168, 16); ctx.restore(); }
+    // --- shooter (team): carries the puck in, winds up, strikes and follows through
+    const SXE = W_ ? 945 : 868, sxAt = tt => lerp(300, SXE, ease(seg(tt, 0, 2.6))) + 26 * ease(seg(tt, 2.7, 3.6));
+    const sx = sxAt(t), lane = gy + 74 + (W_ ? 12 * Math.sin(Math.PI * seg(t, 1.7, 2.7)) : 0), iceY = lane - 3;
+    const px0 = sx + 62 + Math.sin(t * 5) * 24 * (1 - seg(t, 2.1, 2.45));
+    const carryB = [px0 - 8, iceY], carryG = [sx + 14, lane - 118], backB = [px0 - 70, iceY - 30], backG = [sx - 10, lane - 150], hitB = [px0 - 4, iceY], hitG = [sx + 22, lane - 112], folB = [px0 + 60, iceY - 52], folG = [sx + 40, lane - 124];
+    let B, Gt, lean;
+    if (t < 2.42) { B = carryB; Gt = carryG; lean = .32; }
+    else if (t < 2.60) { const u = ease(seg(t, 2.42, 2.60)); B = mix(carryB, backB, u); Gt = mix(carryG, backG, u); lean = lerp(.32, .12, u); }
+    else if (t < 2.68) { const u = seg(t, 2.60, 2.68); B = [lerp(backB[0], hitB[0], u), lerp(backB[1], hitB[1], u * u)]; Gt = mix(backG, hitG, u); lean = lerp(.12, .4, u); }
+    else { const u = ease(seg(t, 2.68, 3.05)); B = mix(hitB, folB, u); Gt = mix(hitG, folG, u); lean = lerp(.4, .28, u); }
+    const Gb = mix(Gt, B, .34), stickOn = t < 3.15, glide = t < 2.45, sr = run(t, 7, .55);
+    const post = !W_ ? { a1: 2.5, a2: 2.4, e1: 1.7, e2: 1.6, lean: .22 } : { a1: 2.85, a2: 2.7, e1: .05, e2: .05, lean: .12 };
+    const sh = kit(T, Object.assign({ n: "8", lean, l1: glide ? sr.l1 : .3, l2: glide ? sr.l2 : -.3, k1: glide ? sr.k1 : .5, k2: glide ? sr.k2 : .5, bob: glide ? sr.bob * .6 : 0 }, stickOn ? { t1: Gt, t2: Gb } : post));
+    const shd = personImpl(sx, lane, H, Object.assign({ dry: true }, sh));
+    add(lane, () => {
+      person(sx, lane, H, sh);
+      onFront(() => {
+        ctx.lineCap = "round"; ctx.strokeStyle = "#7a5a2e"; ctx.lineWidth = 5;
+        if (stickOn) { const tx = Gt[0] + (Gt[0] - B[0]) * .16, ty = Gt[1] + (Gt[1] - B[1]) * .16; line(B[0], B[1], tx, ty); ctx.lineWidth = 8; line(B[0] - 3, B[1] + 1, B[0] + 20, B[1] + 2); }
+        else if (W_) { ctx.lineWidth = 5; line(shd.h1[0] - 12, shd.h1[1] + 34, shd.h1[0] + 30, shd.h1[1] - 78); }
+        else { ctx.lineWidth = 5; line(shd.h1[0], shd.h1[1], shd.h1[0] + 62, iceY - 2); ctx.lineWidth = 8; line(shd.h1[0] + 56, iceY - 2, shd.h1[0] + 78, iceY - 1); }
+      });
+    });
+    // --- goalie (rival): faces the shooter, comes out to challenge; either dives and is beaten, or makes the save
+    const gyL = gy + 50, ch = ease(seg(t, .5, 1.8)), sprawl = W_ ? ease(seg(t, 2.2, 2.75)) : 0;
+    const gxB = W_ ? lerp(GL - 36, 890, ch) : lerp(GL - 36, GL - 30, ch);
+    const gOpt = W_ ? { a1: lerp(1.15, 2.0, sprawl), a2: lerp(1.0, .6, sprawl), e1: .35, e2: .3 } : { a1: t < 2.45 ? 1.15 : t < 3.3 ? 2.15 : 2.85, a2: t < 3.3 ? 1.0 : 2.8, e1: t < 3.3 ? .35 : .05, e2: t < 3.3 ? .3 : .05 };
+    const gk = kit(O, Object.assign({ n: "31", hat: "gk", d: -1, fat: 1.45, helmet: O.t, trim: O.t, glove: "#d9dde3", pants: O.pn, l1: .65, l2: -.5, k1: .55, k2: .55, lean: .18 + .12 * ch, crouch: W_ ? 16 : (t > 3.3 ? 0 : 16) }, gOpt));
+    const gl = personImpl(gxB, gyL, 162, Object.assign({ dry: true }, gk, { a1: 2.15, e1: .35, crouch: 16 })).h1;
+    add(gyL, () => { fx.save(); fx.translate(gxB - 38 * sprawl, gyL); fx.rotate(-1.35 * sprawl); fx.translate(-gxB, -gyL); person(gxB, gyL, 162, gk); fx.restore(); });
+    // --- the shooter's team storms the ice after a goal; the goalie's team does after a save
+    const rushers = W_ ? [[0, 905, gy + 32, T], [.2, 868, gy + 62, T], [.4, 830, gy + 96, T]] : [[0, 968, gy + 30, O], [.2, 936, gy + 70, O], [.4, 904, gy + 98, O]];
+    rushers.forEach(([dl, x1, y, K], i) => { const t0 = W_ ? 3.2 : 3.35; if (t < t0 + dl) return; const mv = seg(t, t0 + dl, t0 + 1.6), x = lerp(520 + i * 40, x1, ease(mv)), hop = t > t0 + 1.6 ? 14 * Math.abs(Math.sin((t - t0 - 1.6) * 6 + i)) : 0, rr = run(t, 7, .7); add(y, () => person(x, y - hop, H, kit(K, { n: String(14 + i * 5), a1: 2.85, a2: 2.7, e1: .05, e2: .05, l1: mv > 0 && mv < 1 ? rr.l1 : 0, l2: mv > 0 && mv < 1 ? rr.l2 : 0, k1: mv > 0 && mv < 1 ? rr.k1 : .1, k2: mv > 0 && mv < 1 ? rr.k2 : .1, lean: .15 }))); });
     // snow spray where the shooter stops
-    const stopT = 2.9;
-    if (t > stopT && t < stopT + .8) for (let i = 0; i < 24; i++) { const a = seg(t, stopT, stopT + .8), px = 975 + hash(i) * 70 * a + 20, py = fyG + 30 + 10 - hash(i + 9) * 50 * Math.sin(a * 3), r2 = 3 * (1 - a); ctx.fillStyle = `rgba(255,255,255,${.9 * (1 - a)})`; disc(px, py, r2 + 1); }
-    // goalie (rival): comes out to challenge, pokes, sprawls
-    const ch = ease(seg(t, .5, 1.8)), gx = lerp(GL - 28, W_ ? GL - 118 : GL - 62, ch), sprawl = W_ ? ease(seg(t, 2.2, 2.75)) : 0, gy2 = gy + 50;
-    add(gy2, () => { const gk = kit(O, { n: "31", hat: "gk", pants: O.pn, fat: 1.45, d: 1, helmet: O.t, trim: O.t, glove: "#d9dde3", a1: W_ ? lerp(1.05, 1.9, sprawl) : (t < 2.5 ? 1.05 : t < 3.3 ? 2.35 : 2.85), a2: W_ ? lerp(1.2, .3, sprawl) : (t < 3.3 ? 1.2 : 2.8), e1: W_ || t < 3.3 ? .4 : .05, e2: W_ || t < 3.3 ? .2 : .05, l1: .55, l2: -.5, k1: .6, k2: .6, lean: .2 + .15 * ch, crouch: W_ ? 16 : (t > 3.3 ? 0 : 16) }); fx.save(); fx.translate(gx - 30 * sprawl, gy2); fx.rotate(-1.35 * sprawl); fx.translate(-gx, -gy2); person(gx, gy2, 162, gk); fx.restore(); });
-    // shooter (team): skates in, shows the puck, goes around the goalie on the near side, lifts it in
-    const sx = lerp(300, W_ ? 1005 : 890, ease(seg(t, 0, 2.7)) * .55 + seg(t, 0, 2.7) * .45), lane = fyG + 20 + 34 * Math.sin(Math.PI * seg(t, 1.5, 2.8)) * .8 + 12 * seg(t, 1.5, 2.8);
-    const sr = run(t, 7, .55), glide = t < 2.6, shootArm = seg(t, 2.55, 2.85);
-    const sh = kit(T, { n: "8", lean: .32, l1: glide ? sr.l1 : .3, l2: glide ? sr.l2 : -.3, k1: glide ? sr.k1 : .5, k2: glide ? sr.k2 : .5, a1: lerp(.7, 1.0, shootArm) + (t > 3 ? (W_ ? 2.0 : 1.5) : 0), a2: lerp(.95, .5, shootArm) + (t > 3 ? (W_ ? 2.0 : 1.4) : 0), e1: t > 3 ? (W_ ? .05 : 1.7) : .6, e2: t > 3 ? (W_ ? .05 : 1.6) : .7, bob: glide ? sr.bob * .6 : 0 });
-    const sd = personImpl(sx, lane, H, Object.assign({ dry: true }, sh));
-    add(lane, () => { person(sx, lane, H, sh); onFront(() => { if (t < 3) { ctx.strokeStyle = "#7a5a2e"; ctx.lineWidth = 6; const pk = [sx + 70 + Math.sin(t * 5) * 26 * (1 - seg(t, 2.1, 2.6)), lane - 4]; line(sd.h1[0], sd.h1[1], pk[0] - 12, lane - 2); ctx.lineWidth = 9; line(pk[0] - 12, lane - 2, pk[0] - 30, lane - 1); } else { ctx.strokeStyle = "#7a5a2e"; ctx.lineWidth = 6; if (W_) line(sd.h1[0], sd.h1[1], sd.h1[0] + 70, sd.h1[1] - 60); else line(sd.h1[0], sd.h1[1], sd.h1[0] + 55, lane - 2); } }); });
-    // teammates storm the ice after the goal
-    [[0, 760], [.2, 700], [.4, 660]].forEach(([dl, x1], i) => { if (!W_ || t < 3.2 + dl) return; const mv = seg(t, 3.2 + dl, 4.7), x = lerp(520 + i * 40, x1 + 190, ease(mv)), y = gy + 24 + i * 30, hop = t > 4.7 ? 16 * Math.abs(Math.sin((t - 4.7) * 6 + i)) : 0, rr = run(t, 7, .7); add(y, () => person(x, y - hop, H, kit(T, { n: String(14 + i * 5), a1: 2.85, a2: 2.7, e1: .05, e2: .05, l1: mv > 0 && mv < 1 ? rr.l1 : 0, l2: mv > 0 && mv < 1 ? rr.l2 : 0, k1: mv > 0 && mv < 1 ? rr.k1 : .1, k2: mv > 0 && mv < 1 ? rr.k2 : .1, lean: .15 }))); });
+    if (t > 3.0 && t < 3.8) for (let i = 0; i < 22; i++) { const a = seg(t, 3.0, 3.8), px = sx + 20 + hash(i) * 60 * a, py = lane - hash(i + 9) * 40 * Math.sin(a * 3), r2 = 3 * (1 - a); ctx.fillStyle = `rgba(255,255,255,${.9 * (1 - a)})`; disc(px, py, r2 + 1); }
     flush();
-    // puck
+    // --- puck
+    const sStart = [sxAt(2.68) + 62, (gy + 74 + (W_ ? 12 * Math.sin(Math.PI * seg(2.68, 1.7, 2.7)) : 0)) - 6], Tn = [GL + 10, ny - 108], tHit = 2.8;
     let bx, by;
-    if (t < 2.6) { bx = sd.h1[0] + 28 + 70 - 70 * 0 - 28 + Math.sin(t * 5) * 26 * (1 - seg(t, 2.1, 2.6)) + 44 - 44; bx = sx + 58 + Math.sin(t * 5) * 26 * (1 - seg(t, 2.1, 2.6)); by = lane - 6; }
-    else if (t < (W_ ? 2.95 : 2.72)) { const u = seg(t, 2.6, W_ ? 2.95 : 2.72), p = arcPos([sx + 58, lane - 6], W_ ? [GL + 36, ny - 100] : [GL - 12, ny - 108], u, 46); bx = p[0]; by = p[1]; }
-    else if (!W_) { const s2 = t - 2.72, fl = gy + 54; bx = GL - 12 - 85 * s2 + 40 * Math.min(s2, .4) * 0; by = Math.min(fl, ny - 108 - 60 * s2 + 520 * s2 * s2); }
-    else { const s = seg(t, 2.95, 3.6); bx = lerp(GL + 36, GL + 52, s); by = lerp(ny - 100, ny - 12, s * s); }
+    if (t < 2.68) { bx = px0; by = iceY - 3; }
+    else if (W_ && t < 2.98) { const p = arcPos(sStart, Tn, seg(t, 2.68, 2.98), 34); bx = p[0]; by = p[1]; }
+    else if (W_) { const s2 = seg(t, 2.98, 3.6); bx = lerp(Tn[0], GL + 58, s2); by = lerp(Tn[1], ny - 12, s2 * s2); }
+    else if (t < tHit) { const p = arcPos(sStart, gl, seg(t, 2.68, tHit), 22); bx = p[0]; by = p[1]; }
+    else { const s2 = t - tHit; bx = gl[0] - 60 * Math.min(s2, .9); by = Math.min(iceY - 3, gl[1] - 36 * s2 + 520 * s2 * s2); }
     fball("puck", bx, by, 11, 0);
+    // near side of the net and the near post are drawn last, so the puck passes behind them
+    onFront(() => { ctx.lineWidth = 1.4; ctx.strokeStyle = "rgba(255,255,255,.4)"; mesh(M1, M2, B2, B1, 6, 7); ctx.strokeStyle = "#d62839"; ctx.lineWidth = 8; ctx.lineCap = "round"; line(M1[0], M1[1], M2[0], M2[1]); });
     if (W_) banner(t, 3.1);
   }
 
   /* ---------- scene 4: baseball, walk-off home run ---------- */
   function baseball(t) {
     const gy = 458, dep = 126, PLATE = 250, FENCE = 1110, F = TMX, W_ = WIN;
-    const cam = t < 1.7 ? 400 : t < 3.3 ? lerp(400, 930, ease(seg(t, 1.7, 3.1))) : (W_ ? lerp(930, 410, ease(seg(t, 4.3, 5.2))) : 930);
+    const cam = !W_ ? 400 : t < 1.7 ? 400 : t < 3.3 ? lerp(400, 930, ease(seg(t, 1.7, 3.1))) : lerp(930, 410, ease(seg(t, 4.3, 5.2)));
     look(cam); backdrop("#050a18", "#0e2744", "#14502a", gy);
     crowd(gy - 190, gy - 100, t, F.ez);
     lightGlow([cam - 260, cam + 300], gy - 230, 200);
@@ -436,44 +477,55 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
     // fans catch up behind the wall once the ball goes over
     // players
     const T = TM, O = OP, kit = (k, o) => Object.assign({ col: k.j, pants: "#e6e9ee", shin: k.t, trim: k.t, num: k.num, hat: "cap", helmet: k.j, long: 0, shoe: "#14151a" }, o);
-    const pitchT = .95, hitT = 1.6, sm = u => u * u * (3 - 2 * u);
-    // pitcher (rival)
+    const pitchT = .95, s0 = W_ ? 1.12 : .98, tC = s0 + .4, arrive = W_ ? tC : 1.73, byG = gy + dep * .6, mix = (p, q, u) => [lerp(p[0], q[0], u), lerp(p[1], q[1], u)];
+    // --- pitcher (rival)
     const w = t < .3 ? 0 : t < .62 ? seg(t, .3, .62) * 2.8 : lerp(2.8, 1.1, seg(t, .62, pitchT));
     const pit = kit(O, { n: "44", d: -1, a1: t > pitchT ? lerp(1.1, .3, seg(t, pitchT, pitchT + .3)) : w, a2: .4, e1: .3, e2: .3, l1: t > .3 && t < .8 ? -1.0 : .1, k1: t > .3 && t < .8 ? 1.2 : .2, lean: t > .8 && t < 1.3 ? .35 : 0, pants: O.pn });
-    const pd = personImpl(640, gy + dep * .6, H, Object.assign({ dry: true }, pit, { a1: 1.5, e1: .2 }));
-    add(gy + dep * .6, () => person(640, gy + dep * .6, H, Object.assign({}, pit, t > 1.9 ? { a1: 2.6, a2: 2.5, e1: 1.2, e2: 1.2 } : {})));
-    // catcher (rival) and umpire behind the plate
-    add(gy + dep * .6 + 1, () => person(PLATE - 56, gy + dep * .6 + 1, 150, kit(O, { n: "12", d: 1, crouch: 38, l1: 1.25, l2: .9, k1: 1.6, k2: 1.5, a1: 1.1, a2: .9, e1: .4, e2: .4, lean: .1, glove: "#6b4a2b", hat: "bat", helmet: "#1b1c22", pants: O.pn })));
-    add(gy + dep * .6 + 3, () => person(PLATE - 108, gy + dep * .6 + 3, 158, { col: "#23252b", pants: "#6f7480", shin: "#6f7480", trim: "#23252b", hat: "cap", helmet: "#17181c", d: 1, crouch: 20, l1: .7, l2: .5, k1: .9, k2: .8, a1: .5, a2: .4, e1: .4, e2: .4, lean: .12 }));
-    // batter (team)
-    const swing = ease(seg(t, 1.12, 1.52)), follow = ease(seg(t, 1.52, 1.95)), phi = t < 1.12 ? -.35 : t < 1.52 ? lerp(-.35, 1.4, swing) : lerp(1.4, 2.7, follow), aa = t < 1.12 ? .9 : t < 1.52 ? lerp(.9, 1.3, swing) : lerp(1.3, 2.4, follow);
-    const bxp = PLATE - 4 + 40 * ease(seg(t, 2.0, 3.3)), byp = gy + dep * .6 + 2, jog = run(t, 8, .6), jogging = t > 2.0 && t < 3.3;
-    const bt = kit(T, { n: "27", hat: "bat", helmet: T.j, a1: aa, a2: aa - .15, e1: .6, e2: .6, l1: jogging ? jog.l1 : (t > 1.3 ? .4 : .15), l2: jogging ? jog.l2 : -.1, k1: jogging ? jog.k1 : .3, k2: jogging ? jog.k2 : .3, lean: -.04 + (t > 1.5 && t < 2.0 ? .08 : 0), crouch: t < 1.1 ? 8 : 0 });
-    const bd = personImpl(bxp, byp, H, Object.assign({ dry: true }, bt));
-    add(byp, () => { person(bxp, byp, H, bt); onFront(() => { ctx.lineCap = "round"; const tip = (hh, p) => [hh[0] + Math.sin(p) * 96, hh[1] - Math.cos(p) * 96]; if (t < 2.15) { const tp = tip(bd.h1, phi); ctx.strokeStyle = "#caa46c"; ctx.lineWidth = 8; line(bd.h1[0], bd.h1[1], tp[0], tp[1]); } else { const u = seg(t, 2.15, 2.6); ctx.save(); ctx.translate(bd.h1[0] + 40 * u, byp - 8 - 38 * Math.sin(Math.PI * u)); ctx.rotate(u * 2.4); ctx.strokeStyle = "#caa46c"; ctx.lineWidth = 8; line(0, 0, 76, 0); ctx.restore(); } }); });
-    // runner from third scores, then the dugout empties
-    const rx = t < 1.7 ? 420 : lerp(420, W_ ? PLATE + 36 : 330, ease(seg(t, 1.7, W_ ? 3.2 : 2.5))), ry = gy + dep - 14, rr = run(t, 11, .95), running = t > 1.7 && t < (W_ ? 3.2 : 2.5), up3 = W_ ? t > 3.2 : t > 3.75;
+    const pd = personImpl(640, byG, H, Object.assign({ dry: true }, pit, { a1: 1.5, e1: .2 }));
+    const pcel = !W_ && t > 1.95, pjump = pcel ? 16 * Math.abs(Math.sin((t - 1.95) * 7)) : 0;
+    add(byG, () => person(640, byG - pjump, H, Object.assign({}, pit, pcel ? { a1: 2.8, a2: 2.7, e1: .05, e2: .05, l1: .1, k1: .2, lean: 0 } : t > 1.9 ? { a1: 2.6, a2: 2.5, e1: 1.2, e2: 1.2 } : {})));
+    // --- catcher and umpire behind the plate
+    const cOpt = kit(O, { n: "12", d: 1, crouch: 38, l1: 1.25, l2: .9, k1: 1.6, k2: 1.5, a1: 1.1, a2: .9, e1: .4, e2: .4, lean: .1, glove: "#6b4a2b", hat: "bat", helmet: "#1b1c22", pants: O.pn });
+    const cg = personImpl(PLATE - 56, byG + 1, 150, Object.assign({ dry: true }, cOpt)).h1;
+    add(byG + 1, () => person(PLATE - 56, byG + 1, 150, !W_ && t > 1.85 ? Object.assign({}, cOpt, { crouch: 14, l1: .5, l2: .3, k1: .7, k2: .6, a1: 2.0, e1: .3, lean: -.05 }) : cOpt));
+    add(byG + 3, () => person(PLATE - 108, byG + 3, 158, { col: "#23252b", pants: "#6f7480", shin: "#6f7480", trim: "#23252b", hat: "cap", helmet: "#17181c", d: 1, crouch: 20, l1: .7, l2: .5, k1: .9, k2: .8, a1: !W_ && t > 1.85 ? 2.85 : .5, a2: .4, e1: !W_ && t > 1.85 ? .05 : .4, e2: .4, lean: .12 }));
+    // --- batter (team): hands lead, the bat head lags and whips through, then the bat wraps up over the shoulder
+    const bxp = PLATE - 4 + (W_ ? 40 * ease(seg(t, 2.0, 3.3)) : 0), byp = byG + 2;
+    const swingPose = (tt) => {
+      const u = clamp((tt - s0) / .4, 0, 1), f = ease(clamp((tt - tC) / .45, 0, 1));
+      let G, phi, lean;
+      if (tt < s0 - .12) { G = [bxp + 8, byp - 150]; phi = -.55; lean = .0; }
+      else if (tt < s0) { const k = ease((tt - (s0 - .12)) / .12); G = [lerp(bxp + 8, bxp - 8, k), lerp(byp - 150, byp - 154, k)]; phi = lerp(-.55, -.75, k); lean = lerp(0, -.1, k); }
+      else if (tt < tC) { G = [lerp(bxp - 8, bxp + 60, ease(u)), lerp(byp - 154, byp - 112, Math.pow(u, .8))]; phi = -.75 + 2.25 * Math.pow(u, 2.4); lean = lerp(-.1, .28, ease(u)); }
+      else { G = [lerp(bxp + 60, bxp + 16, f), lerp(byp - 112, byp - 166, f)]; phi = lerp(1.5, -.9, f); lean = lerp(.28, .1, f); }
+      return { G, phi, lean };
+    };
+    const sp = swingPose(Math.min(t, tC + .45)), ikOn = t < tC + .5, jog = run(t, 8, .6), jogging = W_ && t > 2.0 && t < 3.3;
+    const bOpt = kit(T, Object.assign({ n: "27", hat: "bat", helmet: T.j, l1: jogging ? jog.l1 : (t > s0 - .12 && t < tC + .2 ? .5 : .15), l2: jogging ? jog.l2 : -.2, k1: jogging ? jog.k1 : (t > s0 - .12 ? .5 : .3), k2: jogging ? jog.k2 : .3, crouch: t < s0 ? 10 : 0 },
+      ikOn ? { t1: sp.G, t2: [sp.G[0] - 5, sp.G[1] + 7], lean: sp.lean } : (W_ ? { a1: .6, a2: .5, e1: .6, e2: .6, lean: .08 } : { a1: 2.5, a2: 2.4, e1: 1.8, e2: 1.7, lean: .2 })));
+    const tipOf = (G, phi) => [G[0] + Math.sin(phi) * 96, G[1] - Math.cos(phi) * 96];
+    const tDrop = W_ ? 2.15 : 2.35, spEnd = swingPose(tC + .45);
+    add(byp, () => { person(bxp, byp, H, bOpt); onFront(() => { ctx.lineCap = "round"; const drawBat = (G, phi) => { const tp = tipOf(G, phi), kn = [G[0] - Math.sin(phi) * 14, G[1] + Math.cos(phi) * 14]; ctx.strokeStyle = "#caa46c"; ctx.lineWidth = 6; line(kn[0], kn[1], tp[0], tp[1]); ctx.lineWidth = 10; line(lerp(G[0], tp[0], .55), lerp(G[1], tp[1], .55), tp[0], tp[1]); }; if (t < tDrop) drawBat(sp.G, sp.phi); else { const u = seg(t, tDrop, tDrop + .45); ctx.save(); ctx.translate(spEnd.G[0] + 32 * u, Math.min(byp - 8, spEnd.G[1] + 150 * u * u)); ctx.rotate(u * 2.2); ctx.strokeStyle = "#caa46c"; ctx.lineWidth = 8; line(-6, 0, 80, 0); ctx.restore(); } }); });
+    // --- runner from third: scores on a home run, freezes on a strikeout
+    const rx = !W_ || t < 1.7 ? 420 : lerp(420, PLATE + 36, ease(seg(t, 1.7, 3.2))), ry = gy + dep - 14, rr = run(t, 11, .95), running = W_ && t > 1.7 && t < 3.2, up3 = W_ ? t > 3.2 : t > 1.9;
     add(ry, () => person(rx, ry - (W_ && t > 3.3 ? 24 * Math.abs(Math.sin((t - 3.3) * 6)) : 0), H, kit(T, { n: "5", d: -1, hat: "bat", helmet: T.j, l1: running ? rr.l1 : 0, l2: running ? rr.l2 : 0, k1: running ? rr.k1 : .1, k2: running ? rr.k2 : .1, a1: up3 ? (W_ ? 2.85 : 2.5) : running ? rr.a1 : .25, a2: up3 ? (W_ ? 2.7 : 2.4) : running ? rr.a2 : .25, e1: up3 ? (W_ ? .05 : 1.8) : running ? rr.e1 : .2, e2: up3 ? (W_ ? .05 : 1.7) : running ? rr.e2 : .2, lean: running ? .2 : 0 })));
+    // --- win only: dugout empties, the batter trots home, the right fielder chases the ball to the wall
     [[0, 175, gy + dep * .15], [.2, 140, gy + dep * .4], [.4, 110, gy + dep * .92]].forEach(([dl, x1, y], i) => { if (!W_) return; const mv = seg(t, 3.4 + dl, 4.7 + dl), x = lerp(-120, x1 + 110, ease(mv)), hop = t > 4.7 + dl ? 22 * Math.abs(Math.sin((t - 4.7) * 6 + i * 2)) : 0, c = run(t, 11, .9); add(y, () => person(x, y - hop, H, kit(T, { n: String(30 + i * 7), hat: "cap", l1: mv > 0 && mv < 1 ? c.l1 : 0, l2: mv > 0 && mv < 1 ? c.l2 : 0, k1: mv > 0 && mv < 1 ? c.k1 : .1, k2: mv > 0 && mv < 1 ? c.k2 : .1, a1: t > 4.4 ? 2.85 : mv > 0 && mv < 1 ? c.a1 : .25, a2: t > 4.4 ? 2.7 : mv > 0 && mv < 1 ? c.a2 : .25, e1: t > 4.4 ? .05 : .3, e2: t > 4.4 ? .05 : .3, lean: .1 }))); });
-    // the batter trots home last
     const hx2 = lerp(780, PLATE + 60, ease(seg(t, 4.6, 6.2))), hy2 = gy + dep * .66, hr = run(t, 8, .6), hm = t > 4.6 && t < 6.2;
     if (W_ && t > 4.6) add(hy2, () => person(hx2, hy2, H, kit(T, { n: "27", hat: "bat", helmet: T.j, d: -1, l1: hm ? hr.l1 : 0, l2: hm ? hr.l2 : 0, k1: hm ? hr.k1 : .1, k2: hm ? hr.k2 : .1, a1: 2.8, a2: 2.7, e1: .05, e2: .05, lean: .05 })));
-    // right fielder (rival) runs back to the wall and leaps, but the ball is already over
-    const ox = lerp(980, W_ ? FENCE - 24 : FENCE - 78, ease(seg(t, 1.9, W_ ? 3.45 : 3.3))), oy = gy + dep * .55, oj = 60 * Math.sin(Math.PI * seg(t, 3.4, 4.1)), orun = run(t, 12, .95);
-    add(oy, () => person(ox, oy - oj, H, kit(O, { n: "9", d: 1, l1: t > 1.9 && t < 3.4 ? orun.l1 : (oj > 4 ? .6 : 0), l2: t > 1.9 && t < 3.4 ? orun.l2 : (oj > 4 ? -.2 : 0), k1: t > 1.9 && t < 3.4 ? orun.k1 : .3, k2: t > 1.9 && t < 3.4 ? orun.k2 : .3, a1: t > 3.35 ? 2.95 : orun.a1, a2: t > 3.35 ? 2.7 : orun.a2, e1: t > 3.35 ? .05 : .6, e2: t > 3.35 ? .05 : .6, lean: t > 3.35 ? -.1 : .12, glove: "#6b4a2b", pants: O.pn })));
+    const ox = lerp(980, FENCE - 24, ease(seg(t, 1.9, 3.45))), oy = gy + dep * .55, oj = 60 * Math.sin(Math.PI * seg(t, 3.4, 4.1)), orun = run(t, 12, .95);
+    if (W_) add(oy, () => person(ox, oy - oj, H, kit(O, { n: "9", d: 1, l1: t > 1.9 && t < 3.4 ? orun.l1 : (oj > 4 ? .6 : 0), l2: t > 1.9 && t < 3.4 ? orun.l2 : (oj > 4 ? -.2 : 0), k1: t > 1.9 && t < 3.4 ? orun.k1 : .3, k2: t > 1.9 && t < 3.4 ? orun.k2 : .3, a1: t > 3.35 ? 2.95 : orun.a1, a2: t > 3.35 ? 2.7 : orun.a2, e1: t > 3.35 ? .05 : .6, e2: t > 3.35 ? .05 : .6, lean: t > 3.35 ? -.1 : .12, glove: "#6b4a2b", pants: O.pn })));
     flush();
-    // ball
-    const cont = (() => { const p = personImpl(bxp, byp, H, Object.assign({ dry: true }, bt, { a1: 1.3, a2: 1.15 })); return [p.h1[0] + Math.sin(1.4) * 96, p.h1[1] - Math.cos(1.4) * 96]; })();
-    const fgl = personImpl(ox, oy - oj, H, { dry: true, d: 1, a1: 2.95, a2: 2.7, e1: .05, e2: .05, lean: -.1 });
-    const Kc = [fgl.h1[0] + 2, fgl.h1[1] - 4];
+    // --- ball: pitch, then either the home run or the pitch that beats the bat and lands in the catcher's mitt
+    const cont = tipOf(swingPose(tC).G, 1.5);
     let bx, by, ba = t * 12;
+    const S0 = [pd.h1[0] - 20, pd.h1[1] - 12];
     if (t < pitchT) { bx = pd.h1[0] - 6; by = pd.h1[1]; }
-    else if (t < hitT) { const u = seg(t, pitchT, hitT), s0 = [pd.h1[0] - 20, pd.h1[1] - 12]; bx = lerp(s0[0], cont[0], u); by = lerp(s0[1], cont[1], u * u * .3 + u * .7); }
-    else if (W_) { const u = seg(t, hitT, 4.6), p = arcPos(cont, [FENCE + 190, gy - 190], u, 470); bx = p[0]; by = p[1]; }
-    else if (t < 3.75) { const u = seg(t, hitT, 3.75), kt = personImpl(FENCE - 78, oy - 60, H, { dry: true, d: 1, a1: 2.95, a2: 2.7, e1: .05, e2: .05, lean: -.1 }), p = arcPos(cont, [kt.h1[0] + 2, kt.h1[1] - 4], u, 340); bx = p[0]; by = p[1]; }
-    else { bx = Kc[0]; by = Kc[1]; ba = 0; }
+    else if (W_ && t < tC) { const u = seg(t, pitchT, tC); bx = lerp(S0[0], cont[0], u); by = lerp(S0[1], cont[1], u * u * .3 + u * .7); }
+    else if (W_) { const u = seg(t, tC, 4.6), p = arcPos(cont, [FENCE + 190, gy - 190], u, 470); bx = p[0]; by = p[1]; }
+    else if (t < arrive) { const f = seg(t, pitchT, arrive); bx = lerp(S0[0], cg[0], f); by = S0[1] + (cg[1] - S0[1]) * Math.pow(f, .45); }
+    else { bx = cg[0] + 3; by = cg[1] - 2; ba = 0; }
     fball("baseball", bx, by, 10.5, ba);
-    // fireworks over the stadium
     if (W_ && t > 3.9) for (let k = 0; k < 3; k++) { const a = (t - 3.9 - k * .45) / 1.5; if (a > 0 && a < 1) { const cx0 = FENCE + 120 + k * 160, cy0 = gy - 330 - k * 25; for (let i = 0; i < 22; i++) { const an = i / 22 * 6.283, rr2 = a * 90; ctx.fillStyle = ["#ffd24a", "#ff5a5a", "#6fc3ff"][k]; ctx.globalAlpha = 1 - a; disc(cx0 + Math.cos(an) * rr2, cy0 + Math.sin(an) * rr2 + a * a * 30, 2.6); } ctx.globalAlpha = 1; } }
     if (W_) banner(t, 3.9);
   }

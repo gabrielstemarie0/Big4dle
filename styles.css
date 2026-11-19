@@ -118,3 +118,16 @@ body.finale main{text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .tools .sp{flex:1}
 h1{justify-content:center;font-size:34px;gap:12px;margin:6px 0 2px;letter-spacing:-.03em}
 .mark{width:46px;height:46px}
+
+/* Song card: title + artist under the play button, plus the Apple Music link and official badge */
+.hints{aspect-ratio:1/1}
+.hint .face>*{flex:none}
+.hint .val.song{font-size:13px;margin-top:2px}
+.hint .sub.artist{font-size:11.5px;line-height:1.25}
+.am{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;margin-top:4px}
+.am a[hidden]{display:none}
+.am-text{font-size:11px;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+.am-badge{display:inline-flex;line-height:0}
+.am-badge img{display:block;height:24px;width:auto}
+@media (max-width:420px){.hints{aspect-ratio:5/6}}
+@media (max-width:340px){.hints{aspect-ratio:18/25}}

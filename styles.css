@@ -111,3 +111,10 @@ dialog li{margin:6px 0}
 body.watch .top,body.watch main,body.watch .foot{opacity:0;pointer-events:none}
 body.finale main{text-shadow:0 1px 2px rgba(0,0,0,.6)}
 #bgf{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+
+/* Header: feedback + tools on top, big centred logo and name right above the game */
+.bar{flex-direction:column;align-items:stretch;gap:10px}
+.tools{width:100%}
+.tools .sp{flex:1}
+h1{justify-content:center;font-size:34px;gap:12px;margin:6px 0 2px;letter-spacing:-.03em}
+.mark{width:46px;height:46px}

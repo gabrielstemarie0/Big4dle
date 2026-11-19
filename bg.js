@@ -134,15 +134,6 @@
   function bannerImpl(t, at, big, small, col) {
     const u = seg(t, at, at + .35); if (!u) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const fs = Math.min(W * .1, 62), y = Math.max(H * .17, 70);
-    ctx.save(); ctx.translate(W / 2, y); ctx.scale(.6 + .4 * ease(u), .6 + .4 * ease(u)); ctx.globalAlpha = u;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = `800 ${fs}px -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif`;
-    ctx.lineJoin = "round"; ctx.lineWidth = fs * .2; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.strokeText(big, 0, 0);
-    ctx.fillStyle = col; ctx.fillText(big, 0, 0);
-    ctx.font = `600 ${fs * .34}px -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif`;
-    ctx.fillStyle = "#fff"; ctx.lineWidth = fs * .08; ctx.strokeText(small, 0, fs * .72); ctx.fillText(small, 0, fs * .72);
-    ctx.restore();
     // confetti
     const cols = ["#f28c28", "#fff", "#2e7d5b", "#e0b520", "#d62839", "#4aa3ff"], dt = t - at;
     for (let i = 0; i < 70; i++) {

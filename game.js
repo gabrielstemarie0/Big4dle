@@ -202,6 +202,14 @@
     if (guesses.length && (guesses.includes(answer) || guesses.length >= MAX)) finish(true);
   }
 
+  // Tell the animated background what the game looks like right now (also called by bg.js when it loads, which is after this file).
+  function syncBg() {
+    if (!window.Bg || !pool) return;
+    const tm = pool.find(t => t.name === answer), rv = typeof RIVALS !== "undefined" && RIVALS[answer];
+    Bg.update(guesses.length, over, sport, tm, rv && TEAMS[tm.sport].alltime.find(t => t.name === rv), won);
+  }
+  window.__b4sync = syncBg;
+
   function render() {
     renderHints();
     const ol = $("guesses"); ol.innerHTML = "";
@@ -219,10 +227,7 @@
     });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;
-    if (window.Bg) {
-      const tm = pool.find(t => t.name === answer), rv = typeof RIVALS !== "undefined" && RIVALS[answer];
-      Bg.update(guesses.length, over, sport, tm, rv && TEAMS[tm.sport].alltime.find(t => t.name === rv));
-    }
+    syncBg();
   }
 
   function finish(restore) {
@@ -353,4 +358,9 @@
   const q = new URLSearchParams(location.search);
   forcedSport = SPORTS.includes(q.get("sport")) ? q.get("sport") : null;
   setEdition(q.get("edition") === "alltime" ? "alltime" : "current", q.has("practice") ? "practice" : "daily");
+  // Preview links: ?practice&sport=hockey&demo=win (or lose) plays that round through so the ending can be viewed. Practice only; nothing is saved.
+  if (mode === "practice" && (q.get("demo") === "win" || q.get("demo") === "lose")) {
+    if (q.get("demo") === "win") submit(answer);
+    else pool.filter(t => t.name !== answer).slice(5, 10).forEach(t => submit(t.name));
+  }
 })();

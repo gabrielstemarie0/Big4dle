@@ -171,13 +171,14 @@
     });
   }
 
-  let edition = "current", mode = "daily", sport, pool, answer, guesses, over, won, key, dayShown = null;
+  let forcedSport = null, edition = "current", mode = "daily", sport, pool, answer, guesses, over, won, key, dayShown = null;
 
   function setup(m) {
     mode = m;
     const seed = m === "daily" ? today() : String(Math.random()) + Date.now();
     const r = rng(hash("big4dle:" + edition + ":" + seed));
     sport = SPORTS[Math.floor(r() * SPORTS.length)];
+    if (m === "practice" && forcedSport) { sport = forcedSport; forcedSport = null; }   // ?practice&sport=hockey (first round only)
     pool = SPORTS.flatMap(s => TEAMS[s][edition]);
     const sp = pool.filter(t => t.sport === sport);
     answer = sp[Math.floor(r() * sp.length)].name;
@@ -350,5 +351,6 @@
 
   // Links: ?practice opens a fresh random practice round; add &edition=alltime for the all-time pool.
   const q = new URLSearchParams(location.search);
+  forcedSport = SPORTS.includes(q.get("sport")) ? q.get("sport") : null;
   setEdition(q.get("edition") === "alltime" ? "alltime" : "current", q.has("practice") ? "practice" : "daily");
 })();

@@ -130,6 +130,16 @@
     }
   }
 
+  // Cover art for the four locked cards (song, fans, mascot, colors): coloured tile, chunky 3D-style icon, label.
+  const paw = (x, y, r, s) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${s})"><path d="M0 -3 C-9 -3 -12 6 -10 11 C-8 15 -3 13 0 13 C3 13 8 15 10 11 C12 6 9 -3 0 -3Z" fill="url(#cvp)"/><ellipse cx="-11" cy="-7" rx="3.6" ry="4.6" transform="rotate(-25 -11 -7)" fill="url(#cvp)"/><ellipse cx="-4" cy="-13" rx="3.6" ry="4.8" transform="rotate(-8 -4 -13)" fill="url(#cvp)"/><ellipse cx="4.5" cy="-13" rx="3.6" ry="4.8" transform="rotate(8 4.5 -13)" fill="url(#cvp)"/><ellipse cx="11.5" cy="-7" rx="3.6" ry="4.6" transform="rotate(25 11.5 -7)" fill="url(#cvp)"/></g>`;
+  const COVERS = [
+    { label: "Song", bg: "#a9621c", fg: "#b3a597", svg: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cvn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d73b4"/><stop offset="1" stop-color="#3a3560"/></linearGradient></defs><path d="M24 11 L51 5 V17 L24 23Z" fill="url(#cvn)"/><rect x="22" y="12" width="5.5" height="36" rx="2.7" fill="url(#cvn)"/><rect x="46" y="6" width="5.5" height="36" rx="2.7" fill="url(#cvn)"/><ellipse cx="16.5" cy="48" rx="10" ry="8" transform="rotate(-18 16.5 48)" fill="url(#cvn)"/><ellipse cx="40.5" cy="42" rx="10" ry="8" transform="rotate(-18 40.5 42)" fill="url(#cvn)"/><ellipse cx="13" cy="45" rx="3.5" ry="2" transform="rotate(-30 13 45)" fill="#fff" opacity=".28"/><ellipse cx="37" cy="39" rx="3.5" ry="2" transform="rotate(-30 37 39)" fill="#fff" opacity=".28"/><path d="M24 11 L51 5 V9 L24 15Z" fill="#fff" opacity=".18"/></svg>` },
+    { label: "Fans", bg: "#adaba6", fg: "#575652", svg: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cvm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3a64a"/><stop offset="1" stop-color="#a8651f"/></linearGradient><linearGradient id="cvm2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f0bd6a"/><stop offset="1" stop-color="#c58733"/></linearGradient></defs><g transform="rotate(-24 32 32)"><path d="M17 25 L48 11 V51 L17 39Z" fill="url(#cvm)"/><path d="M17 25 L48 11 V20 L17 31Z" fill="#fff" opacity=".18"/><ellipse cx="48" cy="31" rx="6" ry="20" fill="url(#cvm2)" stroke="#8c5518" stroke-width="2"/><ellipse cx="48" cy="31" rx="2.6" ry="14" fill="#7a4a14" opacity=".55"/><rect x="8" y="25" width="11" height="14" rx="4" fill="#c4802a"/><path d="M20 38 L30 41 L27 55 Q26 58 22 57 Q19 56 20 53Z" fill="#b8691c"/></g></svg>` },
+    { label: "Mascot", bg: "#6c3c1c", fg: "#b9a999", svg: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cvp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a3c5d"/><stop offset="1" stop-color="#2a2236"/></linearGradient></defs>${paw(21, 24, -14, .9)}${paw(43, 44, 14, 1)}</svg>` },
+    { label: "Colors", bg: "#1d1d1d", fg: "#a3a3a3", svg: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cvc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0a395"/><stop offset="1" stop-color="#b0746a"/></linearGradient></defs><path d="M32 7 C16 7 6 18 6 31 C6 45 18 57 30 57 C37 57 38 51 35 47 C32 43 35 39 40 39 H47 C55 39 59 33 59 27 C59 15 47 7 32 7Z" fill="url(#cvc)"/><path d="M32 7 C16 7 6 18 6 31 C6 33 7 35 7 36 C9 24 19 13 32 13 C44 13 53 18 57 26 C55 14 45 7 32 7Z" fill="#fff" opacity=".2"/><circle cx="47" cy="27" r="4.4" fill="#0f0f0f"/><circle cx="20" cy="24" r="4.3" fill="#c2336d"/><circle cx="31" cy="17" r="4.3" fill="#9a4ad8"/><circle cx="17" cy="36" r="4.3" fill="#1f9ca2"/><circle cx="26" cy="46" r="4.3" fill="#3b7fd9"/></svg>` }
+  ];
+  const coverHTML = i => { const c = COVERS[i]; return `<div class="cover" style="background:${c.bg};color:${c.fg}">${c.svg}<b>${c.label}</b></div>`; };
+
   function renderHints() {
     if (over) return;                                         // the finished board is handled by revealAll()
     const open = Math.min(4, guesses.length);                 // nothing is open until the first guess
@@ -137,7 +147,8 @@
       const face = box.querySelector(".front");
       if (i < open && box.classList.contains("locked")) { box.classList.remove("locked"); box.classList.add("open"); fillBox(i); }
       else if (i >= open && !box.classList.contains("locked")) { box.classList.add("locked"); box.classList.remove("open"); }
-      if (i >= open) face.textContent = i + 1;
+      if (i >= open && face.dataset.cover !== "1") { face.innerHTML = coverHTML(i); face.dataset.cover = "1"; }
+      else if (i < open) delete face.dataset.cover;
     });
   }
 

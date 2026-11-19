@@ -60,7 +60,7 @@ dialog li{margin:6px 0}
 /* Hint board: four boxes, revealed top-left to bottom-right */
 .hints{display:grid;grid-template:repeat(2,1fr)/repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;aspect-ratio:4/3}
 .hint{position:relative;perspective:1000px;min-width:0;overflow:hidden;background:var(--surface)}
-.hint.locked .front{background:var(--cover);color:rgba(255,255,255,.3);font-size:22px;font-weight:600}
+.hint.locked .front{background:var(--surface);padding:7px}
 .hint.open{animation:pop .35s ease}
 @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 .hint .cap{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -132,3 +132,8 @@ h1{justify-content:center;font-size:34px;gap:12px;margin:6px 0 2px;letter-spacin
 .ds-back{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 8px;border-radius:9px;background:#fff;color:#1d2433;text-decoration:none;border:2px solid #1d2433;box-shadow:0 4px 10px rgba(0,0,0,.25);font:900 8.5px/1.1 system-ui,-apple-system,sans-serif;letter-spacing:.05em;white-space:nowrap;flex:none}
 .ds-back span+span{font-size:10px;letter-spacing:.06em}
 .ds-back:hover,.ds-back:focus-visible{background:#f2b632}
+
+/* Locked cards: cover art tiles (song, fans, mascot, colors) */
+.cover{width:100%;height:100%;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.cover svg{width:52%;max-width:96px;height:auto;display:block;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35))}
+.cover b{font:800 clamp(10px,3.3vw,15px)/1 "Arial Black",Impact,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase}

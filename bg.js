@@ -28,25 +28,36 @@
   /* ---------- the four balls, drawn like the logo ---------- */
   function ballImpl(kind, x, y, r, a, ph) {
     ctx.save(); ctx.translate(x, y);
+    // soft top-left light and bottom-right shade, so every ball reads as a solid object on black
+    const shade = (R, strength = 1) => { ctx.save(); ctx.rotate(-(a || 0)); const g = ctx.createRadialGradient(-R * .4, -R * .45, R * .05, 0, 0, R * 1.15); g.addColorStop(0, `rgba(255,255,255,${.4 * strength})`); g.addColorStop(.45, "rgba(255,255,255,0)"); g.addColorStop(1, `rgba(0,0,0,${.45 * strength})`); ctx.fillStyle = g; ctx.fillRect(-R * 1.6, -R * 1.6, R * 3.2, R * 3.2); ctx.restore(); };
     if (kind === "puck") {
-      const ry = r * .5;
-      ctx.fillStyle = "#101010"; ctx.beginPath(); ctx.ellipse(0, r * .22, r, ry, 0, 0, 7); ctx.fill();
-      ctx.fillRect(-r, -r * .05, r * 2, r * .27);
-      ctx.fillStyle = "#101010"; ctx.beginPath(); ctx.ellipse(0, r * .22, r, ry, 0, 0, Math.PI); ctx.fill();
-      ctx.fillStyle = "#3b3b3b"; ctx.beginPath(); ctx.ellipse(0, -r * .05, r, ry, 0, 0, 7); ctx.fill();
-      ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = Math.max(1, r * .07); ctx.beginPath(); ctx.ellipse(0, -r * .05, r, ry, 0, 0, 7); ctx.stroke();
+      const ry = r * .52, th = r * .55, cyT = -th / 2, cyB = th / 2;   // top face centre / bottom face centre
+      // thick cylinder wall, lit from the left, with a lighter lower edge so it never vanishes on black
+      const wall = ctx.createLinearGradient(-r, 0, r, 0); wall.addColorStop(0, "#6a6a6e"); wall.addColorStop(.35, "#3a3a3e"); wall.addColorStop(.75, "#1c1c1f"); wall.addColorStop(1, "#2b2b2f");
+      ctx.fillStyle = wall; ctx.beginPath(); ctx.moveTo(-r, cyT); ctx.lineTo(-r, cyB); ctx.ellipse(0, cyB, r, ry, 0, Math.PI, 0, true); ctx.lineTo(r, cyT); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(190,190,200,.55)"; ctx.lineWidth = Math.max(1, r * .07); ctx.beginPath(); ctx.ellipse(0, cyB, r, ry, 0, .12, Math.PI - .12); ctx.stroke();
+      // top face: domed grey with a glossy highlight, bevelled rim and a printed ring
+      const top = ctx.createRadialGradient(-r * .35, cyT - ry * .35, r * .05, 0, cyT, r * 1.05); top.addColorStop(0, "#8a8a90"); top.addColorStop(.5, "#505055"); top.addColorStop(1, "#2a2a2e");
+      ctx.fillStyle = top; ctx.beginPath(); ctx.ellipse(0, cyT, r, ry, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = Math.max(1, r * .06); ctx.beginPath(); ctx.ellipse(0, cyT, r * .72, ry * .72, 0, 0, 7); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,.2)"; ctx.beginPath(); ctx.ellipse(0, cyT + r * .03, r * .72, ry * .72, 0, .2, Math.PI - .2); ctx.stroke();
+      const rim = ctx.createLinearGradient(-r, cyT - ry, r, cyT + ry); rim.addColorStop(0, "#e4e4ea"); rim.addColorStop(.5, "#8c8c92"); rim.addColorStop(1, "#4c4c52");
+      ctx.strokeStyle = rim; ctx.lineWidth = Math.max(1.2, r * .09); ctx.beginPath(); ctx.ellipse(0, cyT, r, ry, 0, 0, 7); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.ellipse(-r * .38, cyT - ry * .42, r * .26, ry * .12, -.35, 0, 7); ctx.fill();
       ctx.restore(); return;
     }
     ctx.rotate(a);
     if (kind === "football") {
       const rx = r * 1.4, ry = r * .8;
       const lemon = () => { ctx.beginPath(); ctx.moveTo(-rx, 0); ctx.bezierCurveTo(-rx * .55, -ry * 1.45, rx * .55, -ry * 1.45, rx, 0); ctx.bezierCurveTo(rx * .55, ry * 1.45, -rx * .55, ry * 1.45, -rx, 0); ctx.closePath(); };
-      lemon(); ctx.fillStyle = "#8a4a22"; ctx.fill();
+      lemon(); ctx.fillStyle = "#9a5428"; ctx.fill();
       ctx.save(); lemon(); ctx.clip();
       ctx.strokeStyle = "#fff"; ctx.lineCap = "butt"; ctx.lineWidth = r * .14; line(-rx * .62, -ry * 1.1, -rx * .62, ry * 1.1); line(rx * .62, -ry * 1.1, rx * .62, ry * 1.1);
       const ps = Math.sin(ph || 0), pc = Math.cos(ph || 0);   // spiral: laces roll around the long axis
       if (ph == null || pc > -.15) { ctx.strokeStyle = "#f4f1e8"; ctx.lineCap = "round"; ctx.lineWidth = r * .1 * Math.max(.35, pc); const yo = ps * ry * .75; line(-rx * .3, yo, rx * .3, yo); for (let i = -2; i <= 2; i++) line(i * rx * .13, yo - ry * .2 * Math.max(.35, pc), i * rx * .13, yo + ry * .2 * Math.max(.35, pc)); }
+      shade(rx, .55);
       ctx.restore();
+      lemon(); ctx.strokeStyle = "rgba(255,225,190,.35)"; ctx.lineWidth = Math.max(1, r * .06); ctx.stroke();
     } else if (kind === "baseball") {
       ctx.fillStyle = "#f7f4ec"; disc(0, 0, r);
       ctx.strokeStyle = "#d62839"; ctx.lineCap = "round"; ctx.lineWidth = r * .09;
@@ -54,6 +65,8 @@
         ctx.beginPath(); ctx.moveTo(s * r * .55, -r * .8); ctx.quadraticCurveTo(s * r * .05, 0, s * r * .55, r * .8); ctx.stroke();
         for (let i = -3; i <= 3; i++) { const yy = i * r * .22, xx = s * (r * .26 + (1 - Math.abs(i) / 3.4) * 0 + Math.abs(i) * r * .06 + r * .05); line(xx - s * r * .1, yy - r * .05, xx + s * r * .1, yy + r * .05); }
       }
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.clip(); shade(r, .9); ctx.restore();
+      ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = Math.max(1, r * .05); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
     } else { // basketball
       ctx.fillStyle = "#f28c28"; disc(0, 0, r);
       ctx.strokeStyle = "#2b1a0a"; ctx.lineCap = "round"; ctx.lineWidth = r * .09;
@@ -61,6 +74,7 @@
       ctx.beginPath(); ctx.moveTo(-r * .72, -r * .72); ctx.quadraticCurveTo(-r * .2, 0, -r * .72, r * .72);
       ctx.moveTo(r * .72, -r * .72); ctx.quadraticCurveTo(r * .2, 0, r * .72, r * .72); ctx.stroke();
       ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.clip(); shade(r, 1); ctx.restore();
     }
     ctx.restore();
   }
@@ -488,5 +502,5 @@ const dist = (a, c) => Math.hypot(...[1, 3, 5].map(i => parseInt(a.slice(i, i + 
   document.addEventListener("click", () => { if (watching) watch(false); });
   document.addEventListener("keydown", e => { if (watching && e.key === "Escape") watch(false); });
 
-  window.Bg = { update, freeze(s, t) { phase = "finale"; sport = s; frozen = t; document.body.classList.add("finale"); start(); }, unfreeze() { frozen = null; } };
+  window.Bg = { _draw(c, list) { const prev = ctx; ctx = c; try { list.forEach(a => ballImpl(...a)); } finally { ctx = prev; } }, update, freeze(s, t) { phase = "finale"; sport = s; frozen = t; document.body.classList.add("finale"); start(); }, unfreeze() { frozen = null; } };
 })();

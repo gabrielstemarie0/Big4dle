@@ -26,9 +26,11 @@
 
   // ---- Hint board: four boxes, top-left to bottom-right. One more box opens after every guess.
   //      1 team song (play button) · 2 fan base · 3 mascot · 4 home jersey colours
-  const CLIP_SECONDS = 15;   // how much of each song can be played
+  // Song hint follows Apple's preview-clip rules: the 30-second preview is streamed exactly as Apple returns it
+  // (no trimming, looping, editing, downloading or caching), with the title/artist and a "Listen on Apple Music" link.
   const STEPS = ["Team song", "Fan base", "Mascot", "Home jersey colors"];
-  const audio = new Audio(); audio.preload = "none";
+  const audio = new Audio(); audio.preload = "none"; audio.loop = false;
+  const progress = () => { const d = audio.duration; return d && isFinite(d) ? audio.currentTime / d * 100 : audio.currentTime / 30 * 100; };
   let boxes = [], hintTeam = null, tried = false;
   const ALIAS = { Patriots: ["pats"], Buccaneers: ["bucs", "bucco"], Dolphins: ["phins", "phinsiders"], "49ers": ["niners", "niner"], Jaguars: ["jags"], Cardinals: ["cards"],
     Seahawks: ["hawks"], "Red Sox": ["sox"], "White Sox": ["sox"], "Blue Jays": ["jays"], Diamondbacks: ["dbacks", "d-backs"], Athletics: ["a's"], Canadiens: ["habs"],
@@ -57,7 +59,7 @@
     try {
       const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(title + " " + artist)}&media=music&entity=song&limit=10`);
       const hit = (await r.json()).results.find(x => x.previewUrl);
-      return hit ? hit.previewUrl : null;
+      return hit ? { previewUrl: hit.previewUrl, trackViewUrl: hit.trackViewUrl || null } : null;
     } catch { return null; }
   }
 
@@ -71,13 +73,22 @@
     const h = HINTS[hintTeam.name];
     if (!final) { audio.pause(); audio.removeAttribute("src"); tried = false; if (h && h.u) audio.src = h.u; }
     else if (!audio.getAttribute("src") && h && h.u) { audio.src = h.u; tried = false; }
-    const under = final ? `<div class="val song">${escHTML(h.s[0])}</div><div class="sub">${escHTML(h.s[1])}</div>` : `<div class="sub">15-second clip</div>`;
-    face.innerHTML = `<div class="cap">Team song</div><button class="play${final ? " small" : ""}" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button>${under}`;
+    // Title + artist sit under the play button. Words that would give the team away are blanked out until the round ends,
+    // and so is the Apple Music link (its page would show the real title).
+    const mask = maskFor(hintTeam), t = final ? escHTML(h.s[0]) : redacted(mask(h.s[0])), ar = final ? escHTML(h.s[1]) : redacted(mask(h.s[1]));
+    const giveaway = mask(h.s[0]) !== h.s[0] || mask(h.s[1]) !== h.s[1];
+    const href = h.a ? escHTML(h.a) : "";
+    const am = (final || !giveaway) ? `<div class="am"><a class="am-text" href="${href}" target="_blank" rel="noopener"${href ? "" : " hidden"}>Listen on Apple Music</a><a class="am-badge" href="${href}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"${href ? "" : " hidden"}><img src="apple-music-badge.svg" alt="" height="24"></a></div>` : "";
+    const under = `<div class="val song">${t}</div><div class="sub artist">${ar}</div>${am}`;
+    face.innerHTML = `<div class="cap">Team song</div><button class="play small" type="button" aria-label="Play the team song"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="29"/><circle class="prog" cx="32" cy="32" r="29" pathLength="100"/><path class="i-play" d="M25 19L47 32L25 45Z"/><path class="i-pause" d="M24 20H30V44H24ZM34 20H40V44H34Z"/></svg></button>${under}`;
     const btn = face.querySelector(".play");
-    if (final) { btn.classList.toggle("playing", !audio.paused); btn.style.setProperty("--p", audio.currentTime ? (audio.currentTime / CLIP_SECONDS * 100).toFixed(1) : 0); }
+    if (final) { btn.classList.toggle("playing", !audio.paused); btn.style.setProperty("--p", audio.currentTime ? progress().toFixed(1) : 0); }
+    // Missing track link? Ask the iTunes search (same search the preview comes from) and use its trackViewUrl.
+    const setLinks = u => face.querySelectorAll(".am a").forEach(el => { el.href = u; el.hidden = false; });
+    if (!h.a && (final || !giveaway)) lookupPreview(h.s[0], h.s[1]).then(r => { if (r && r.trackViewUrl) setLinks(r.trackViewUrl); });
     const recover = async () => {
-      if (!tried && h) { tried = true; const u = await lookupPreview(h.s[0], h.s[1]); if (u) { audio.src = u; try { await audio.play(); return; } catch {} } }
-      if (final) face.querySelector(".sub").textContent = `${h.s[1]} · clip unavailable`; else songFallback(face, true);
+      if (!tried && h) { tried = true; const r = await lookupPreview(h.s[0], h.s[1]); if (r) { audio.src = r.previewUrl; if (r.trackViewUrl) setLinks(r.trackViewUrl); try { await audio.play(); return; } catch {} } }
+      if (final) face.querySelector(".artist").textContent = `${h.s[1]} · clip unavailable`; else songFallback(face, true);
     };
     btn.onclick = async () => {
       if (!audio.paused) { audio.pause(); return; }
@@ -85,12 +96,9 @@
       try { await audio.play(); } catch { recover(); }
     };
     audio.onplay = () => btn.classList.add("playing");
-    audio.onpause = audio.onended = () => btn.classList.remove("playing");
-    audio.ontimeupdate = () => {
-      // Only the first 15 seconds of the preview are ever played.
-      if (audio.currentTime >= CLIP_SECONDS) { audio.pause(); audio.currentTime = 0; btn.style.setProperty("--p", 0); return; }
-      btn.style.setProperty("--p", (audio.currentTime / CLIP_SECONDS * 100).toFixed(1));
-    };
+    audio.onpause = () => btn.classList.remove("playing");
+    audio.onended = () => { btn.classList.remove("playing"); btn.style.setProperty("--p", 0); };
+    audio.ontimeupdate = () => btn.style.setProperty("--p", progress().toFixed(1));
     audio.onerror = () => { if (audio.getAttribute("src")) recover(); };
   }
 

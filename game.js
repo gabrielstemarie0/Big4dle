@@ -199,7 +199,7 @@
     });
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;
-    if (window.Bg) Bg.update(guesses.length, over, sport);
+    if (window.Bg) Bg.update(guesses.length, over, sport, pool.find(t => t.name === answer));
   }
 
   function finish(restore) {

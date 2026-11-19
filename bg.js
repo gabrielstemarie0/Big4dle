@@ -7,10 +7,15 @@
   const cv = document.createElement("canvas");
   cv.id = "bg"; cv.setAttribute("aria-hidden", "true");
   document.body.prepend(cv);
-  const ctx = cv.getContext("2d");
+  const cf = document.createElement("canvas");
+  cf.id = "bgf"; cf.setAttribute("aria-hidden", "true");
+  document.body.append(cf);
+  let ctx = cv.getContext("2d");
+  const fx = cf.getContext("2d");    // players, ball and banner are drawn here, in front of the page
+  const onFront = fn => { const s = ctx; ctx = fx; try { return fn(); } finally { ctx = s; } };
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let W = 0, H = 0, dpr = 1;
-  function size() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
+  function size() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = cf.width = W * dpr; cv.height = cf.height = H * dpr; }
   size(); addEventListener("resize", size);
 
   const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -21,7 +26,7 @@
   const disc = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); };
 
   /* ---------- the four balls, drawn like the logo ---------- */
-  function ball(kind, x, y, r, a) {
+  function ballImpl(kind, x, y, r, a) {
     ctx.save(); ctx.translate(x, y);
     if (kind === "puck") {
       const ry = r * .5;
@@ -58,8 +63,12 @@
     ctx.restore();
   }
 
+  const ball = (...a) => ballImpl(...a);
+  const fball = (...a) => onFront(() => ballImpl(...a));
+
   /* ---------- state ---------- */
   const KINDS = ["basketball", "baseball", "football", "puck"];
+  let TM = { j: "#4aa3ff", p: "#1b3a66", h: "#4aa3ff" }, OP = { j: "#e6e9ef", p: "#666", h: "#e6e9ef" };
   let phase = "none", kind = "basketball", balls = [], sport = "", finaleAt = 0, last = 0, running = false, frozen = null, watching = false;
 
   function spawn() {
@@ -70,7 +79,13 @@
       balls.push({ x: R + Math.random() * (W - 2 * R), y: R + Math.random() * (H - 2 * R), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: R * (.85 + Math.random() * .3), a: Math.random() * 6, spin: (Math.random() - .5) * 3, pop: 0 });
     }
   }
-  function update(n, over, s) {
+  const lum = c => { const v = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+  const lift = c => { if (lum(c) > .1) return c; const v = [1, 3, 5].map(i => Math.round(parseInt(c.slice(i, i + 2), 16) * .6 + 255 * .4)); return "#" + v.map(x => x.toString(16).padStart(2, "0")).join(""); };
+  function update(n, over, s, team) {
+    if (team) {
+      TM = { j: lift(team.c1), p: lift(team.c2 === team.c1 ? team.c3 : team.c2), h: lift(team.c3 === team.c1 ? team.c2 : team.c3) };
+      OP = lum(team.c1) > .55 ? { j: "#2f3545", p: "#20242f", h: "#2f3545" } : { j: "#e6e9ef", p: "#7a808c", h: "#e6e9ef" };
+    }
     if (over) { if (phase !== "finale" || sport !== s) { phase = "finale"; sport = s; finaleAt = performance.now(); } }
     else if (n === 0) { phase = "none"; watch(false); }
     else {
@@ -84,7 +99,7 @@
   function start() { if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } }
 
   /* ---------- people ---------- */
-  function person(x, y, h, o) {
+  function personImpl(x, y, h, o) {
     const d = o.d || 1, lw = h * .12 * (o.fat || 1), leg = h * .46, tor = h * .34, arm = h * .3, lean = o.lean || 0;
     const hx = x, hy = y - leg, sx = hx + Math.sin(lean) * tor * d, sy = hy - Math.cos(lean) * tor;
     const P = (bx, by, ang, len) => [bx + Math.sin(ang) * len * d, by + Math.cos(ang) * len];
@@ -102,18 +117,21 @@
     }
     return { h1, h2, s: [sx, sy], k1, k2 };
   }
+  const person = (x, y, h, o) => o.dry ? personImpl(x, y, h, o) : onFront(() => personImpl(x, y, h, o));
   const run = (t, f = 11) => ({ l1: Math.sin(t * f) * .9, l2: -Math.sin(t * f) * .9, a1: .25 - Math.sin(t * f) * .9, a2: .25 + Math.sin(t * f) * .9 });
 
   /* ---------- scene helpers ---------- */
   let sc = { S: 1, ox: 0, oy: 0 };
+  const setT = () => { const m = [dpr * sc.S, 0, 0, dpr * sc.S, dpr * sc.ox, dpr * sc.oy]; ctx.setTransform(...m); fx.setTransform(...m); };
   function backdrop(top, bottom, ground, gy) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, top); g.addColorStop(1, bottom);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = ground; ctx.fillRect(0, sc.oy + gy * sc.S, W, H);
-    ctx.setTransform(dpr * sc.S, 0, 0, dpr * sc.S, dpr * sc.ox, dpr * sc.oy);
+    setT();
   }
-  function banner(t, at, big, small, col) {
+  function banner(...a) { onFront(() => bannerImpl(...a)); }
+  function bannerImpl(t, at, big, small, col) {
     const u = seg(t, at, at + .35); if (!u) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const fs = Math.min(W * .1, 62), y = Math.max(H * .17, 70);
@@ -131,7 +149,7 @@
       const x = ((i * 137.5) % 100) / 100 * W + Math.sin(dt * 2 + i) * 14, y2 = ((dt * (90 + (i % 7) * 26) + i * 53) % (H + 40)) - 20;
       ctx.fillStyle = cols[i % 6]; ctx.save(); ctx.translate(x, y2); ctx.rotate(dt * 3 + i); ctx.fillRect(-4, -2, 8, 4); ctx.restore();
     }
-    ctx.setTransform(dpr * sc.S, 0, 0, dpr * sc.S, dpr * sc.ox, dpr * sc.oy);
+    setT();
   }
 
   /* ---------- scene 1: football, hail mary touchdown ---------- */
@@ -145,18 +163,18 @@
     line(985, fy - 5, 985, fy - 150); line(985, fy - 150, 985, fy - 150); line(930, fy - 150, 1040, fy - 150); line(930, fy - 150, 930, fy - 290); line(1040, fy - 150, 1040, fy - 290);
     // players
     const qbx = 200 - 30 * seg(t, 0, 1.2), cock = ease(seg(t, 1.2, 1.6));
-    const qb = { col: "#e8e8e8", helmet: "#e8e8e8", a1: t < 1.2 ? 1 : lerp(-.6, 2.7, cock), a2: t < 1.2 ? 1 : lerp(.3, 1.2, cock), lean: t < 1.2 ? 0 : lerp(-.12, .2, cock) };
+    const qb = { col: TM.j, helmet: TM.h, pants: TM.p, a1: t < 1.2 ? 1 : lerp(-.6, 2.7, cock), a2: t < 1.2 ? 1 : lerp(.3, 1.2, cock), lean: t < 1.2 ? 0 : lerp(-.12, .2, cock) };
     if (t < 1.2) Object.assign(qb, { l1: -Math.sin(t * 9) * .4, l2: Math.sin(t * 9) * .4 });
     const qp = person(qbx, fy, 170, qb);
     const rx = lerp(480, 850, ease(seg(t, .3, 4.4) * .5 + seg(t, .3, 4.4) * .5)) + 20 * seg(t, 4.9, 5.8);
     const jumpR = 62 * Math.sin(Math.PI * seg(t, 4.0, 4.9)), rrun = t < 4.0 || (t > 4.9 && t < 5.8);
     const hold = t < 3.9 ? 0 : t < 4.9 ? 2.9 : t < 5.5 ? .6 : 2.8;
-    const rec = { col: "#e0b520", helmet: "#e0b520", pants: "#5a4a10", a1: t < 3.7 ? run(t).a1 : hold, a2: t < 3.7 ? run(t).a2 : hold, l1: rrun ? run(t).l1 : jumpR > 5 ? .8 : 0, l2: rrun ? run(t).l2 : jumpR > 5 ? -.5 : 0 };
+    const rec = { col: TM.j, helmet: TM.h, pants: TM.p, a1: t < 3.7 ? run(t).a1 : hold, a2: t < 3.7 ? run(t).a2 : hold, l1: rrun ? run(t).l1 : jumpR > 5 ? .8 : 0, l2: rrun ? run(t).l2 : jumpR > 5 ? -.5 : 0 };
     const recDraw = (dry) => person(rx, fy - jumpR, 170, Object.assign({ floor: fy, dry }, rec));
     for (const [x0, x1, delay, c] of [[380, 805, 4.15, "#d62839"], [640, 912, 4.3, "#b3202f"]]) {
       const dx = lerp(x0, x1, ease(seg(t, .3, 4.5))), jj = 50 * Math.sin(Math.PI * seg(t, delay, delay + .8));
       const r2 = run(t, 11.5), up = t > delay - .2 && t < delay + .9;
-      person(dx, fy - jj, 170, { col: c, helmet: c, pants: "#5a1a22", floor: fy, d: 1, l1: t < 4.5 ? r2.l1 : 0, l2: t < 4.5 ? r2.l2 : 0, a1: up ? 2.6 : (t > 4.9 ? .2 : r2.a1), a2: up ? 2.3 : (t > 4.9 ? .2 : r2.a2) });
+      person(dx, fy - jj, 170, { col: OP.j, helmet: OP.h, pants: OP.p, floor: fy, d: 1, l1: t < 4.5 ? r2.l1 : 0, l2: t < 4.5 ? r2.l2 : 0, a1: up ? 2.6 : (t > 4.9 ? .2 : r2.a1), a2: up ? 2.3 : (t > 4.9 ? .2 : r2.a2) });
     }
     recDraw(false);
     // ball
@@ -167,7 +185,7 @@
       const u = seg(t, 1.6, 4.6), e = person(rx, fy - 62 * Math.sin(Math.PI * seg(4.6, 4.0, 4.9)), 170, Object.assign({ floor: fy, dry: true }, rec, { a1: 2.9, a2: 2.9 })).h1;
       bx = lerp(qp.h1[0] + 12, e[0], u); by = lerp(qp.h1[1], e[1], u) - 4 * 240 * u * (1 - u); ba = t * 12;
     } else { bx = rp.h1[0]; by = rp.h1[1]; ba = -.5; }
-    ball("football", bx, by, 15, ba);
+    fball("football", bx, by, 15, ba);
     banner(t, 5.0, "TOUCHDOWN!", "Hail Mary caught in the end zone", "#f2c230");
   }
 
@@ -195,11 +213,11 @@
     const celeb = t > swish;
     for (const [x, c] of [[430, "#4aa3ff"], [560, "#4aa3ff"]]) {
       const j = celeb ? 28 * Math.abs(Math.sin((t - swish) * 6 + x)) : 0;
-      person(x, fy - j, 170, { col: c, pants: "#1b3a66", floor: fy, a1: celeb ? 2.8 : .25, a2: celeb ? 2.7 : .25 });
+      person(x, fy - j, 170, { col: TM.j, pants: TM.p, floor: fy, a1: celeb ? 2.8 : .25, a2: celeb ? 2.7 : .25 });
     }
     const jump = 24 * Math.sin(Math.PI * seg(t, 1.15, 1.75));
     const shoot = ease(seg(t, 1.0, 1.5)), arms = t < 1 ? .9 : lerp(.9, 2.8, shoot);
-    const sh = { col: "#4aa3ff", pants: "#1b3a66", floor: fy, a1: t < 3.7 ? arms : 2.8, a2: t < 3.7 ? arms - .2 : 2.8, lean: t < 1 ? 0 : -.08, l1: t > 1.2 && t < 1.8 ? .3 : 0 };
+    const sh = { col: TM.j, pants: TM.p, floor: fy, a1: t < 3.7 ? arms : 2.8, a2: t < 3.7 ? arms - .2 : 2.8, lean: t < 1 ? 0 : -.08, l1: t > 1.2 && t < 1.8 ? .3 : 0 };
     if (celeb) { Object.assign(sh); }
     const sp = person(100, fy - (celeb ? 28 * Math.abs(Math.sin((t - swish) * 6)) : jump), 170, sh);
     // ball
@@ -214,7 +232,7 @@
       const floor = fy - 17;
       if (by > floor) { const b = s - Math.sqrt((floor - rimY - 4) / 700); by = floor - 95 * Math.abs(Math.sin(b * 5.5)) * Math.exp(-b * 1.6); }
     }
-    ball("basketball", bx, by, 17, t * 6);
+    fball("basketball", bx, by, 17, t * 6);
     banner(t, 3.9, "BUZZER BEATER!", "Half-court shot to win it", "#ff9a3c");
   }
 
@@ -234,26 +252,26 @@
     if (hit) { ctx.fillStyle = `rgba(255,50,50,${.5 + .5 * Math.sin(t * 20)})`; ctx.save(); ctx.shadowColor = "#ff2020"; ctx.shadowBlur = 40; disc(880, fy - 160, 17); ctx.restore(); }
     // goalie
     const gk = ease(seg(t, 3.05, 3.7)), shiftx = -14 * ease(seg(t, 2.3, 2.9)) * (1 - gk);
-    ctx.save(); ctx.translate(815 + shiftx - 34 * gk, fy); ctx.rotate(-1.35 * gk);
-    person(0, 0, 165, { col: "#e0b520", pants: "#f3f3f3", fat: 1.5, helmet: "#f3f3f3", d: 1, l1: .45, l2: -.45, a1: lerp(1.0, 2.2, gk), a2: lerp(1.2, .1, gk), lean: .15, floor: 0 });
-    ctx.restore();
+    fx.save(); fx.translate(815 + shiftx - 34 * gk, fy); fx.rotate(-1.35 * gk);
+    person(0, 0, 165, { col: OP.j, pants: OP.p, fat: 1.5, helmet: OP.h, d: 1, l1: .45, l2: -.45, a1: lerp(1.0, 2.2, gk), a2: lerp(1.2, .1, gk), lean: .15, floor: 0 });
+    fx.restore();
     // shooter + puck
     const sx = lerp(-120, 560, ease(seg(t, 0, 3.0) * .7 + seg(t, 0, 3.0) * .3)) + 50 * seg(t, 3.4, 4.6), glide = t < 3.0 || t > 3.4;
     const st = Math.sin(t * 7) * .55;
     const arm = t < 3.0 ? .55 : t < 3.3 ? lerp(.55, 1.4, seg(t, 3.0, 3.3)) : 2.8;
-    const sp = person(sx, fy, 170, { col: "#4aa3ff", pants: "#1b3a66", helmet: "#4aa3ff", floor: fy, lean: .2, l1: st, l2: -st, a1: t > 3.4 ? 2.8 : arm, a2: t > 3.4 ? 2.8 : arm + .15 });
+    const sp = person(sx, fy, 170, { col: TM.j, pants: TM.p, helmet: TM.h, floor: fy, lean: .2, l1: st, l2: -st, a1: t > 3.4 ? 2.8 : arm, a2: t > 3.4 ? 2.8 : arm + .15 });
     const dangle = Math.sin(t * 5) * 28 * (1 - seg(t, 2.6, 3.0));
     const pk = [sx + 62 + dangle, fy - 9];
-    if (t < 3.4) { ctx.strokeStyle = "#7a5a2e"; ctx.lineWidth = 6; line(sp.h1[0], sp.h1[1], pk[0] - 10, fy - 4); ctx.lineWidth = 9; line(pk[0] - 10, fy - 4, pk[0] - 26, fy - 3); }
+    if (t < 3.4) onFront(() => { ctx.strokeStyle = "#7a5a2e"; ctx.lineWidth = 6; line(sp.h1[0], sp.h1[1], pk[0] - 10, fy - 4); ctx.lineWidth = 9; line(pk[0] - 10, fy - 4, pk[0] - 26, fy - 3); });
     let bx, by;
     if (t < 3.0) { bx = pk[0]; by = pk[1]; }
     else if (t < 3.4) { const u = seg(t, 3.0, 3.4); bx = lerp(pk[0], 884, u); by = lerp(pk[1], fy - 100, u * u) - 40 * u * (1 - u); }
     else { const s = seg(t, 3.4, 4.0); bx = lerp(884, 897, s); by = lerp(fy - 100, fy - 20, s * s); }
-    ball("puck", bx, by, 11, 0);
+    fball("puck", bx, by, 11, 0);
     // teammates pile in
     for (const [d, x1, c] of [[0, 470, "#4aa3ff"], [.25, 400, "#4aa3ff"]]) {
       const x = lerp(-150, x1, ease(seg(t, 3.7 + d, 5.6))), moving = t > 3.7 + d && t < 5.6, cc = Math.sin(t * 8) * .5;
-      person(x, fy - (t > 5.6 ? 18 * Math.abs(Math.sin((t - 5.6) * 6)) : 0), 170, { col: c, pants: "#1b3a66", helmet: c, floor: fy, l1: moving ? cc : 0, l2: moving ? -cc : 0, a1: t > 3.7 + d ? 2.8 : .25, a2: t > 3.7 + d ? 2.8 : .25 });
+      person(x, fy - (t > 5.6 ? 18 * Math.abs(Math.sin((t - 5.6) * 6)) : 0), 170, { col: TM.j, pants: TM.p, helmet: TM.h, floor: fy, l1: moving ? cc : 0, l2: moving ? -cc : 0, a1: t > 3.7 + d ? 2.8 : .25, a2: t > 3.7 + d ? 2.8 : .25 });
     }
     banner(t, 3.6, "SHOOTOUT WINNER!", "Top corner, game over", "#6fc3ff");
   }
@@ -268,23 +286,23 @@
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(225, fy + 4); ctx.lineTo(275, fy + 4); ctx.lineTo(268, fy + 14); ctx.lineTo(232, fy + 14); ctx.closePath(); ctx.fill();
     // pitcher
     const w = t < .3 ? 0 : t < .6 ? seg(t, .3, .6) * 2.8 : lerp(2.8, 1.1, seg(t, .6, .9));
-    const pt = { col: "#e8e8e8", pants: "#555", d: -1, floor: fy, a1: t > .9 ? lerp(1.1, .25, seg(t, .9, 1.2)) : w, a2: .3, l1: t > .3 && t < .75 ? -1.0 : 0, l2: 0 };
+    const pt = { col: OP.j, pants: OP.p, helmet: OP.h, d: -1, floor: fy, a1: t > .9 ? lerp(1.1, .25, seg(t, .9, 1.2)) : w, a2: .3, l1: t > .3 && t < .75 ? -1.0 : 0, l2: 0 };
     const pp = person(640, fy, 170, pt);
     // batter
     const swing = ease(seg(t, 1.15, 1.55)), follow = ease(seg(t, 1.55, 1.95)), phi = t < 1.15 ? -.35 : t < 1.55 ? lerp(-.35, 1.4, swing) : lerp(1.4, 2.7, follow);
     const aa = t < 1.15 ? .9 : t < 1.55 ? lerp(.9, 1.3, swing) : lerp(1.3, 2.3, follow);
     const bxp = 190 + 130 * ease(seg(t, 2.0, 3.2));
-    const bat = person(bxp, fy, 170, { col: "#d62839", helmet: "#d62839", a1: aa, a2: aa - .1, l1: t > 2.0 && t < 3.2 ? Math.sin(t * 9) * .6 : t > 1.3 ? .3 : 0, l2: t > 2.0 && t < 3.2 ? -Math.sin(t * 9) * .6 : 0, lean: t > 3.0 ? 0 : -.05 });
+    const bat = person(bxp, fy, 170, { col: TM.j, helmet: TM.h, pants: TM.p, a1: aa, a2: aa - .1, l1: t > 2.0 && t < 3.2 ? Math.sin(t * 9) * .6 : t > 1.3 ? .3 : 0, l2: t > 2.0 && t < 3.2 ? -Math.sin(t * 9) * .6 : 0, lean: t > 3.0 ? 0 : -.05 });
     const tip = (h, p) => [h[0] + Math.sin(p) * 95, h[1] - Math.cos(p) * 95];
-    if (t < 2.1) { const bt = tip(bat.h1, phi); ctx.strokeStyle = "#c9a26b"; ctx.lineWidth = 8; ctx.lineCap = "round"; line(bat.h1[0], bat.h1[1], bt[0], bt[1]); }
-    else { ctx.save(); ctx.translate(bat.h1[0] + 40 * seg(t, 2.1, 2.5), fy - 6 - 40 * Math.sin(Math.PI * seg(t, 2.1, 2.5))); ctx.rotate(seg(t, 2.1, 2.5) * 2.2); ctx.strokeStyle = "#c9a26b"; ctx.lineWidth = 8; ctx.lineCap = "round"; line(0, 0, 70, 0); ctx.restore(); }
+    if (t < 2.1) onFront(() => { const bt = tip(bat.h1, phi); ctx.strokeStyle = "#c9a26b"; ctx.lineWidth = 8; ctx.lineCap = "round"; line(bat.h1[0], bat.h1[1], bt[0], bt[1]); });
+    else onFront(() => { ctx.save(); ctx.translate(bat.h1[0] + 40 * seg(t, 2.1, 2.5), fy - 6 - 40 * Math.sin(Math.PI * seg(t, 2.1, 2.5))); ctx.rotate(seg(t, 2.1, 2.5) * 2.2); ctx.strokeStyle = "#c9a26b"; ctx.lineWidth = 8; ctx.lineCap = "round"; line(0, 0, 70, 0); ctx.restore(); });
     // runner scoring from third, then the mob
     const rx = lerp(560, 250, ease(seg(t, 1.7, 3.2)));
     const rr = run(t, 12), rrun = t > 1.7 && t < 3.2;
-    person(rx, fy + 20 - (t > 3.3 ? 24 * Math.abs(Math.sin((t - 3.3) * 6)) : 0), 170, { col: "#e0b520", helmet: "#e0b520", pants: "#5a4a10", d: -1, floor: fy + 20, l1: rrun ? rr.l1 : 0, l2: rrun ? rr.l2 : 0, a1: t > 3.2 ? 2.8 : rrun ? rr.a1 : .25, a2: t > 3.2 ? 2.8 : rrun ? rr.a2 : .25 });
+    person(rx, fy + 20 - (t > 3.3 ? 24 * Math.abs(Math.sin((t - 3.3) * 6)) : 0), 170, { col: TM.j, helmet: TM.h, pants: TM.p, d: -1, floor: fy + 20, l1: rrun ? rr.l1 : 0, l2: rrun ? rr.l2 : 0, a1: t > 3.2 ? 2.8 : rrun ? rr.a1 : .25, a2: t > 3.2 ? 2.8 : rrun ? rr.a2 : .25 });
     for (const [d, x1] of [[0, 175], [.2, 140], [.4, 105]]) {
       const x = lerp(-150, x1, ease(seg(t, 3.4 + d, 4.6 + d))), mv = t > 3.4 + d && t < 4.6 + d, c = run(t, 12);
-      person(x, fy + 10 - (t > 4.6 + d ? 22 * Math.abs(Math.sin((t - 4.6) * 6 + d * 9)) : 0), 170, { col: "#e0b520", helmet: "#e0b520", pants: "#5a4a10", floor: fy + 10, l1: mv ? c.l1 : 0, l2: mv ? c.l2 : 0, a1: t > 4.4 ? 2.8 : mv ? c.a1 : .25, a2: t > 4.4 ? 2.7 : mv ? c.a2 : .25 });
+      person(x, fy + 10 - (t > 4.6 + d ? 22 * Math.abs(Math.sin((t - 4.6) * 6 + d * 9)) : 0), 170, { col: TM.j, helmet: TM.h, pants: TM.p, floor: fy + 10, l1: mv ? c.l1 : 0, l2: mv ? c.l2 : 0, a1: t > 4.4 ? 2.8 : mv ? c.a1 : .25, a2: t > 4.4 ? 2.7 : mv ? c.a2 : .25 });
     }
     // ball: pitch, then home run
     const contact = tip(person(bxp, fy, 170, { a1: 1.3, a2: 1.2, dry: true, lean: -.05 }).h1, 1.4);
@@ -292,18 +310,19 @@
     if (t < .9) { bx = pp.h1[0]; by = pp.h1[1]; }
     else if (t < 1.55) { const u = seg(t, .9, 1.55), s0 = [610, fy - 165]; bx = lerp(s0[0], contact[0], u); by = lerp(s0[1], contact[1], u * u * .3 + u * .7); }
     else { const u = seg(t, 1.55, 4.6); bx = lerp(contact[0], 1130, u); by = lerp(contact[1], fy - 110, u) - 4 * 430 * u * (1 - u); }
-    ball("baseball", bx, by, 11, ba);
+    fball("baseball", bx, by, 11, ba);
     banner(t, 3.3, "WALK-OFF HOMER!", "Bottom of the ninth, ball game", "#ff6b5e");
   }
 
-  const SCENES = { NFL: football, NBA: basketball, NHL: hockey, MLB: baseball };
-  const LOOP = { NFL: 10.5, NBA: 9.5, NHL: 9.5, MLB: 10 };
-  const STILL = { NFL: 6.2, NBA: 5.2, NHL: 5.0, MLB: 5.0 };
+  const SCENES = { football, basketball, hockey, baseball };
+  const LOOP = { football: 10.5, basketball: 9.5, hockey: 9.5, baseball: 10 };
+  const STILL = { football: 6.2, basketball: 5.2, hockey: 5.0, baseball: 5.0 };
 
   /* ---------- main loop ---------- */
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, cf.width, cf.height);
     if (phase === "balls") {
       const k = reduce ? .25 : 1;
       for (const b of balls) {
@@ -317,7 +336,7 @@
       const f = SCENES[sport], L = LOOP[sport];
       const S = Math.min(W / 700, H / 600); sc = { S, ox: W / 2 - 500 * S, oy: H / 2 - 300 * S };
       const t = frozen != null ? frozen : reduce ? STILL[sport] : ((now - finaleAt) / 1000) % L;
-      ctx.save(); f(t); ctx.restore(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.save(); fx.save(); f(t); fx.restore(); ctx.restore(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (watching) { ctx.font = "600 14px -apple-system,Segoe UI,Roboto,sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fillText("Tap anywhere to go back", W / 2, H - 22); }
     }
     if (phase === "none" || (phase === "finale" && (reduce || frozen != null))) { running = false; return; }

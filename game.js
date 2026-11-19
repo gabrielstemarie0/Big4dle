@@ -211,7 +211,7 @@
     $("status").textContent = "";
     $("end-title").textContent = won ? `Got it in ${guesses.length}!` : "Out of guesses";
     const squares = guesses.map(g => g === answer ? "🟩" : pool.find(t => t.name === g).sport === sport ? "🟨" : "⬛").join("") + "⬜".repeat(Math.max(0, MAX - guesses.length));
-    $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}`;
+    $("share-text").textContent = `Big4dle${edition === "alltime" ? " All-Time" : ""}${mode === "daily" ? " " + today() : ""} ${won ? guesses.length : "X"}/${MAX}\n${squares}\nthedailystation.com/big4dle`;
     revealAll(!restore);
     $("end").hidden = false;
     if (mode === "daily" && !restore) recordStats();
@@ -311,7 +311,7 @@
     if (message.length < 3) { fbStatus.textContent = "Please write a little more."; fbStatus.className = "fb-status err"; return; }
     $("fb-send").disabled = true; fbStatus.className = "fb-status"; fbStatus.textContent = "Sending...";
     try {
-      const res = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      const res = await fetch("api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
         kind: $("fb-kind").value, message, website: $("fb-hp").value,
         team: answer, edition, mode, day: dayShown || today(), guesses: guesses.length, viewport: `${innerWidth}x${innerHeight}`
       }) });

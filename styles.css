@@ -151,3 +151,8 @@ h1{justify-content:center;font-size:34px;gap:12px;margin:6px 0 2px;letter-spacin
 @media (max-width:420px){.hints{aspect-ratio:5/6}}
 @media (max-width:340px){.hints{aspect-ratio:18/25}}
 body.watch .origin{opacity:0;pointer-events:none}
+
+/* newest guess slides in at the top */
+.guesses li.new{animation:guessIn .28s ease-out}
+@keyframes guessIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.guesses li.new{animation:none}}

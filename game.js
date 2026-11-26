@@ -210,11 +210,12 @@
   }
   window.__b4sync = syncBg;
 
+  let fresh = false;   // true only right after a guess is submitted, so the newest row slides in (not on page load)
   function render() {
     renderHints();
     const ol = $("guesses"); ol.innerHTML = "";
     const target = pool.find(t => t.name === answer);
-    guesses.forEach(name => {
+    guesses.forEach((name, idx) => {
       const t = pool.find(x => x.name === name), li = document.createElement("li");
       // right team: the whole row turns green. right sport (wrong team): only the ball is highlighted yellow.
       li.className = name === answer ? "ok" : t.sport === sport ? "close" : "";
@@ -223,8 +224,10 @@
       right.innerHTML = `<span class="ballwrap">${BALLS[t.sport]}</span>`;
       const km = document.createElement("span"); km.className = "km";
       km.textContent = `${kmBetween(t.loc, target.loc).toLocaleString("en-US")} km`;
-      right.append(km); li.append(n, right); ol.append(li);
+      right.append(km); li.append(n, right); ol.prepend(li);   // newest answer on top, older ones are pushed down
+      if (fresh && idx === guesses.length - 1) li.classList.add("new");
     });
+    fresh = false;
     $("status").textContent = over ? "" : `Guess ${guesses.length + 1} of ${MAX}`;
     $("submit").disabled = $("guess").disabled = over;
     syncBg();
@@ -276,7 +279,7 @@
 
   function submit(code) {
     if (over || !code || guesses.includes(code)) return;
-    guesses.push(code);
+    guesses.push(code); fresh = true;
     if (mode === "daily") store.set(key, { guesses, answer });
     $("guess").value = ""; options();
     if (code === answer || guesses.length >= MAX) finish(false); else render();
